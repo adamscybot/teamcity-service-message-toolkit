@@ -2,7 +2,7 @@ import { Readable, Transform, TransformCallback } from 'node:stream'
 
 import messages, {
   TcTestSuiteStarted,
-} from './messages/wrappers/default-messages.js'
+} from './messages/wrappers/OLDdefault-messages.js'
 import { TcDummySuite, TcDummyTestLogger } from './logger.js'
 import { defaultMessageFromLineFactory } from './parser/string-parse.js'
 

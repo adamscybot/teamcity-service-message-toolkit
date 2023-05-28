@@ -3,12 +3,12 @@ import {
   isSingleAttributeMessage,
 } from '../messages/guards.js'
 import { MessageTypeForLogLine } from '../messages/types.js'
-import messages, { Messages } from '../messages/wrappers/default-messages.js'
+import messages, { Messages } from '../messages/wrappers/OLDdefault-messages.js'
 import {
   TcBaseMessage,
   TcMultiAttributeMessage,
   TcSingleAttributeMessage,
-} from '../messages/wrappers/base-message-types.js'
+} from '../messages/wrappers/OLDbase-message-types.js'
 
 const TC_IDENT = '##teamcity'
 

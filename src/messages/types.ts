@@ -1,111 +1,120 @@
-import { ZodErrorMap } from 'zod'
-import { Messages, TcMessage } from './wrappers/default-messages.js'
 import {
-  TcMultiAttributeMessage,
-  TcSingleAttributeMessage,
-} from './wrappers/base-message-types.js'
-import type { InstanceFromClass } from '../util-types.js'
+  MultiAttributeMessageOpts,
+  SingleAttributeMessageOpts,
+  SingleAttributeMessageTypeOpts,
+  MultiAttributeMessageTypeOpts,
+  MessageOpts,
+  MessageTypeOpts,
+} from './wrappers/message-type-builder.js'
 
 type IsLiteral<T> = T extends any ? (string extends T ? false : true) : never
 type TrimWhitespace<S extends string> = S extends ` ${infer R}`
   ? TrimWhitespace<R>
   : S
 
-export type MessageValidationErrors = ZodErrorMap
-
-export interface TcBaseMessageInterface {
-  messageName(): string
+export interface Message<MessageName extends string = string> {
+  /**
+   * @see MessageOpts.flowId
+   */
   flowId(): string | undefined
+  /**
+   * @see MessageTypeOpts.messageName
+   */
+  messageName(): MessageName
 }
 
-export interface TcBaseSingleAttributeMessageInterface<ValueType>
-  extends TcBaseMessageInterface {
-  value(value: ValueType): this
-  value(): ValueType | undefined
-  rawValue(value: string): this
-  rawValue(): string | undefined
-  rawValue(value?: string | undefined): string | undefined | this
+interface ValidateableMessage {
+  /**
+   * Perform validation on the message according to the validation function configured on the message type.
+   *
+   * @throws A {@link MessageValidationError}
+   * @returns The same message object that was validated.
+   * @see SingleAttributeMessageTypeOpts.validate for where the validate logic is defined for a single attribute message.
+   * @see MultiAttributeMessageTypeOpts.validatefor where the validate logic is defined for a multi attribute message.
+   */
+  validate(): this
 }
 
-export type TcMultiPropertyAttributeMap = Record<
-  string,
-  { type: any; required?: boolean }
->
+export interface SingleAttributeMessage<
+  ValueType,
+  MessageName extends string = string
+> extends Message<MessageName>,
+    ValidateableMessage {
+  /**
+   * Get the underlying string that represents the value.
+   *
+   * @returns The underlying raw string value, or undefined if it was not set.
+   */
+  getRawValue(): string | undefined
+  /**
+   * Set the underlying string that represents the value.
+   *
+   * @param rawValue The underlying raw string value, or undefined to unset.
+   * @returns The message object.
+   */
+  setRawValue(rawValue: string | undefined): this
+  /**
+   * Set the representational value of this message, using the type it is represented as. Usually, this
+   * is the same as the underlying raw value (a string), unless the message type
+   * dictates a different type.
+   *
+   * @param value The new representational value to set
+   * @returns The message object.
+   */
+  setValue(value: ValueType): this
+  /**
+   * Gets the representational value of this message in the form of the type it is represented as.
+   * Usually, this  is the same as the underlying raw value (a string), unless the message type
+   * dictates a different type.
+   *
+   * @param value The representational value.
+   */
+  getValue(): ValueType
+}
 
-export type ApplyAttributeValueRules<
-  AttributeMap extends TcMultiPropertyAttributeMap,
-  Key extends keyof AttributeMap
-> =
-  | AttributeMap[Key]['type']
-  | (AttributeMap[Key]['required'] extends true ? void : undefined)
-
-export type TcMultiPropertyValidatedModifier<
-  AttributeMap extends TcMultiPropertyAttributeMap
-> = {
-  attr: <Key extends keyof AttributeMap>(
+export interface MultiAttributeMessage<
+  MessageName extends string,
+  Keys extends string,
+  AttributeTypes extends Partial<Record<Keys, any>> = {}
+> extends Message<MessageName>,
+    ValidateableMessage {
+  /**
+   * Get the underlying string that represents the value.
+   *
+   * @param key The key of the attribute to get.
+   * @returns The underlying raw string value for this attribute, or undefined if it was not set.
+   */
+  getRawAttr(key: Keys & ({} | string)): string | undefined
+  /**
+   * Set the underlying string that represents the value.
+   *
+   * @param key The key of the attribute to set.
+   * @param rawValue The underlying raw string value for this attribute, or undefined if it was not set.
+   * @returns The message object.
+   */
+  setRawAttr(key: Keys & ({} | string), rawValue: string): this
+  /**
+   * Gets the representational value of this message in the form of the type it is represented as.
+   * Usually, this  is the same as the underlying raw value (a string), unless the message type
+   * dictates a different type.
+   *
+   * @param key The key of the attribute to get.
+   * @returns The representational value for this attribute.
+   */
+  getAttr<Key extends Keys>(
     key: Key
-  ) => ApplyAttributeValueRules<AttributeMap, Key>
-}
-
-export interface TcBaseMultiAttributeMessageInterface<
-  AttributeMap extends TcMultiPropertyAttributeMap
-> extends TcBaseMessageInterface {
-  attr<Key extends keyof AttributeMap>(
-    key: Key
-  ): AttributeMap[Key]['type'] | undefined
-  attr<Key extends keyof AttributeMap>(
+  ): AttributeTypes[Key] extends never ? string : AttributeTypes[Key]
+  /**
+   * Set the representational value of this message, using the type it is represented as. Usually, this
+   * is the same as the underlying raw value (a string), unless the message type
+   * dictates a different type.
+   *
+   * @param key The key of the attribute to set.
+   * @param value The new representational value to set for this attribute.
+   * @returns The message object.
+   */
+  setAttr<Key extends Keys>(
     key: Key,
-    value: AttributeMap[Key]['type']
+    value: AttributeTypes[Key] extends never ? string : AttributeTypes[Key]
   ): this
-  rawAttr(key: string, value: string): this
-  rawAttr(key: string): string | undefined
-  rawAttr(key?: string | undefined): string | undefined | this
 }
-
-export type MessageMap = Record<
-  string,
-  TcSingleAttributeMessageInterface | TcMultiAttributeMessageInterface<any>
->
-
-export type MessageWithStaticName = {
-  new (...args: any[]): any
-  messageName: string
-}
-
-/**
- * A utility type that takes an array of classes that each contain a `messageName` static property
- * which is used to index a new `MessageMap` type for use with a repostitory.
- */
-export type MessageMapFromStaticType<T extends MessageWithStaticName> = {
-  [K in T['messageName']]: Extract<T, { messageName: K }>
-}
-
-export type ExtractAttributeKeys<Attrs> =
-  Attrs extends `${infer Attr} ${infer Rest}`
-    ? Attr extends `${infer Name}=${string}`
-      ? Name | ExtractAttributeKeys<TrimWhitespace<Rest>>
-      : never
-    : Attrs extends `${infer Name}=${string}${infer Rest}`
-    ? Name | ExtractAttributeKeys<Rest>
-    : never
-
-export type UnpackMessageString<Line> =
-  Line extends `##teamcity[${infer MessageName} ${infer Attrs}]`
-    ? { messageName: MessageName; attrs: ExtractAttributeKeys<Attrs> }
-    : never
-
-export type MessageNameToTypeMap = {
-  [K in Messages['messageName']]: Extract<Messages, { messageName: K }>
-}
-
-export type MessageTypeForLogLine<Line> = Line extends IsLiteral<Line>
-  ? UnpackMessageString<Line>['messageName'] extends keyof MessageNameToTypeMap
-    ? InstanceFromClass<
-        MessageNameToTypeMap[UnpackMessageString<Line>['messageName']]
-      >
-    : UnpackMessageString<Line>['attrs'] extends never
-    ? InstanceFromClass<typeof TcSingleAttributeMessage>
-    : InstanceFromClass<
-        typeof TcMultiAttributeMessage<UnpackMessageString<Line>['attrs']>
-      >
-  : Messages

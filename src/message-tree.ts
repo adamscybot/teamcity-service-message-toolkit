@@ -9,8 +9,8 @@ import messages, {
   TcTestSuiteFinished,
   TcTestSuiteStarted,
   Messages,
-} from './messages/wrappers/default-messages.js'
-import { TcBaseMessage } from './messages/wrappers/base-message-types.js'
+} from './messages/wrappers/OLDdefault-messages.js'
+import { TcBaseMessage } from './messages/wrappers/OLDbase-message-types.js'
 
 type InstanceTypeTuple<T extends Array<(typeof messages)[number]>> = {
   [P in keyof T]: InstanceType<T[P]>

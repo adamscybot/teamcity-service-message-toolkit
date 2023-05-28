@@ -1,18 +1,21 @@
 import { CustomError } from 'ts-custom-error'
-import { TcBaseMessageInterface } from '../types.js'
-
-export class MessageValueAccessWhilstUnvalidated extends CustomError {
-  public constructor(message: TcBaseMessageInterface<any>, key?: string) {
-    super(
-      `Attemtped to access ${
-        key === undefined ? '' : `'${key}' `
-      } value on ${message} without first calling 'validate()'. The validate function must be called again if a setter was called. Call the validate function or use the other available methods to access the raw underlying values.`
-    )
-  }
-}
+import {
+  Message,
+  MultiAttributeMessage,
+  SingleAttributeMessage,
+} from '../types.js'
 
 export class MessageValidationError extends CustomError {
-  public constructor(message: TcBaseMessageInterface<any>, reason: string) {
-    super(`Message '${message}' failed validation. Reason: ${reason}`)
+  public constructor(reason: string, message?: Message) {
+    super(`Message validation failure. Reason: ${reason}`)
+  }
+
+  public withMessage<
+    MessageType extends
+      | SingleAttributeMessage<any, any>
+      | MultiAttributeMessage<any, any, any>
+  >(message: MessageType) {
+    this.message += ` Message: ${message}`
+    return this
   }
 }
