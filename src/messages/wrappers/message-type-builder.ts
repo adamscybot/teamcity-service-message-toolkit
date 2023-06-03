@@ -1,3 +1,4 @@
+import z, { ZodSchema } from 'zod'
 import { MessageValidationError } from './errors.js'
 import {
   Message,
@@ -5,6 +6,11 @@ import {
   SingleAttributeMessage,
 } from '../types.js'
 import type { MessageTypeRepository } from '../repos/message-type-repository.js'
+import validators, {
+  InferValidatorType,
+  MessageValidator,
+  MultiAttributeMessageValidator,
+} from './schema-utils.js'
 
 export interface MessageTypeOpts<MessageName extends string = string> {
   /**
@@ -205,7 +211,7 @@ export type MultiAttributeMessageTypeOpts<
    * A `Set` of strings that represents the list of possible valid attribute names for this
    * message.
    */
-  keys: Set<Keys>
+  keys: Readonly<Set<Keys>>
 
   /**
    * The validation function for this message. If the object is not valid, it must throw a
@@ -218,14 +224,18 @@ export type MultiAttributeMessageTypeOpts<
   validate?: (
     rawKwargs: Partial<Record<Keys & ({} | string), string>>
   ) => boolean
+  validationSchema?: (schema: ZodSchema) => any
 } & AttributeAccessorOpts<Keys, AttributeTypes>
 
 export type MultiAttributeMessageOpts<Keys extends string> = MessageOpts & {
   /**
-   * A object literal mapping the attribute names (keys) to their initial value in the form of the raw underlying string.
-   * Or `undefined` if a given attribute is unset. Missing properties are also treated as unset.
+   * An object literal mapping the attribute names (keys) to their initial string value in the form of the raw underlying string,
+   * or `undefined` if a given attribute is unset. At this stage, any validator that has been applied is not executed, so the typings
+   * of `rawKwargs` allow any input object as long as it is a flat object literal that maps strings representing arbitary
+   * attribute names to string values. This is to allow representations of malformed messages to exist. To validate, call
+   * `validate()` on a message object.
    */
-  rawKwargs?: Partial<Record<Keys & ({} | string), string>>
+  rawKwargs: Partial<Record<Keys & ({} | string), string>>
 }
 
 function isAccessorAvailableForKey<
@@ -248,6 +258,7 @@ function isKnownAttributeKey<Keys extends string>(
 function createMultiAttributeMessage<
   MessageName extends string,
   Keys extends string,
+  ValidationSchema,
   AttributeTypes extends Partial<Record<Keys, any>> = {}
 >({
   messageName,
@@ -352,6 +363,7 @@ export type MultiAttributeMessageFactoryBuildOpts<
 export type MultipleAttributeMessageFactory<
   MessageName extends string,
   Keys extends string,
+  RawValidationSchema,
   AttributeTypes extends Partial<Record<Keys, any>> = Partial<
     Record<Keys, string>
   >
@@ -400,47 +412,72 @@ export default {
     multipleAttribute: () => ({
       /**
        * Define the set of strings for each possible valid attribute name for the message type this factory will handle.
+       *
+       * @param keys The `Set` of known attribute names that this multi message handles.
        */
-      keys: <const Keys extends string>(keys: Set<Keys>) => ({
-        /**
-         * Construct the factory that can be used to generate a representation of a message as defined by the chain leading up to this point.
-         * @param messageTypeOpts The {@link MultiAttributeMessageFactoryBuildOpts} that defines aspects of the construct of the message type.
-         * @returns A {@link MultipleAttributeMessageFactory} that handles the defined message.
-         */
-        build: <
-          const AttributeTypes extends Partial<Record<Keys, any>> = Partial<
-            Record<Keys, string>
-          >
-        >(
-          messageTypeOpts?: MultiAttributeMessageFactoryBuildOpts<
-            MessageName,
-            Keys,
-            AttributeTypes
-          >
-        ) => {
-          const messageFactory: MultipleAttributeMessageFactory<
-            MessageName,
-            Keys,
-            AttributeTypes
-          > = (opts) =>
-            createMultiAttributeMessage<MessageName, Keys, AttributeTypes>({
-              ...opts,
-              // Cast needed since the omit of `messageName` in `MultiAttributeMessageFactoryBuildOpts` removes `messageName`
-              // which causes TS to lose some needed context to resolve the merge.
-              ...(messageTypeOpts as MultiAttributeMessageTypeOpts<
-                MessageName,
-                Keys,
-                AttributeTypes
-              >),
-              messageName,
-              keys,
-            })
+      keys: <const Keys extends string>(keys: Set<Keys>) => {
+        return {
+          validator: <ValidationSchema extends MultiAttributeMessageValidator>(
+            getValidationSchema: (
+              schemas: ReturnType<typeof validators.multiAttribute<Keys>>
+            ) => InferValidatorType<Keys, ValidationSchema>
+          ) => {
+            let validationSchema = getValidationSchema(
+              validators.multiAttribute<Keys>(keys)
+            )
 
-          messageFactory.messageName = messageName
+            return {
+              test: () => {
+                return {} as z.infer<ValidationSchema>
+              },
+              /**
+               * Construct the factory that can be used to generate a representation of a message as defined by the chain leading up to this point.
+               * @param messageTypeOpts The {@link MultiAttributeMessageFactoryBuildOpts} that defines aspects of the construct of the message type.
+               * @returns A {@link MultipleAttributeMessageFactory} that handles the defined message.
+               */
+              build: <
+                const AttributeTypes extends Partial<
+                  Record<Keys, any>
+                > = Partial<Record<Keys, string>>
+              >(
+                messageTypeOpts?: MultiAttributeMessageFactoryBuildOpts<
+                  MessageName,
+                  Keys,
+                  AttributeTypes
+                >
+              ) => {
+                const messageFactory: MultipleAttributeMessageFactory<
+                  MessageName,
+                  Keys,
+                  z.infer<ValidationSchema>,
+                  AttributeTypes
+                > = (opts) =>
+                  createMultiAttributeMessage<
+                    MessageName,
+                    Keys,
+                    ValidationSchema,
+                    AttributeTypes
+                  >({
+                    ...opts,
+                    // Cast needed since the omit of `messageName` in `MultiAttributeMessageFactoryBuildOpts` removes `messageName`
+                    // which causes TS to lose some needed context to resolve the merge.
+                    ...(messageTypeOpts as MultiAttributeMessageTypeOpts<
+                      MessageName,
+                      Keys,
+                      AttributeTypes
+                    >),
+                    messageName,
+                    keys,
+                  })
 
-          return messageFactory
-        },
-      }),
+                messageFactory.messageName = messageName
+
+                return messageFactory
+              },
+            }
+          },
+        }
+      },
     }),
     /**
      * Indicate the message type that this factory will handle is one which is of the single attribute format.

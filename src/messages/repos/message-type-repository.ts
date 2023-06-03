@@ -1,9 +1,11 @@
+import { Primitive, ZodAny, ZodLiteral, ZodNever, ZodTypeAny, z } from 'zod'
 import { MessageValidationError } from '../wrappers/errors.js'
 import messageTypeBuilder, {
   MultiAttributeMessageFactoryBuildOpts,
   MultipleAttributeMessageFactory,
   SingleAttributeMessageFactory,
 } from '../wrappers/message-type-builder.js'
+import validatorBuilder from '../wrappers/schema-utils.js'
 
 type MessageFactory =
   | SingleAttributeMessageFactory<any, any>
@@ -87,7 +89,10 @@ const buildTestMessage = <
     .keys<'name' | 'timestamp' | AdditionalKeys>(
       new Set(['name', 'timestamp', ...additionalKeys])
     )
-    .build()
+    .build({
+      ...buildOpts,
+      validate: (rawKwargs) => rawKwargs.timestamp,
+    })
 }
 
 export enum MessageMessageStatus {
@@ -95,6 +100,38 @@ export enum MessageMessageStatus {
   WARNING = 'WARNING',
   FAILURE = 'FAILURE',
   ERROR = 'ERROR',
+}
+
+type MappedZodLiterals<T extends readonly Primitive[]> = {
+  -readonly [K in keyof T]: ZodLiteral<T[K]>
+}
+
+function createManyUnion<
+  A extends Readonly<[Primitive, Primitive, ...Primitive[]]>
+>(literals: A) {
+  return z.union(
+    literals.map((value) => z.literal(value)) as MappedZodLiterals<A>
+  )
+}
+
+function createUnionSchema<T extends readonly []>(values: T): ZodNever
+function createUnionSchema<T extends readonly [Primitive]>(
+  values: T
+): ZodLiteral<T[0]>
+function createUnionSchema<
+  T extends readonly [Primitive, Primitive, ...Primitive[]]
+>(values: T): z.ZodUnion<MappedZodLiterals<T>>
+function createUnionSchema<T extends readonly Primitive[]>(values: T) {
+  if (values.length > 1) {
+    return createManyUnion(
+      values as typeof values & [Primitive, Primitive, ...Primitive[]]
+    )
+  } else if (values.length === 1) {
+    return z.literal(values[0])
+  } else if (values.length === 0) {
+    return z.never()
+  }
+  throw new Error('Array must have a length')
 }
 
 /**
@@ -137,11 +174,19 @@ export const defaultTypeRepository = messageTypeRepository([
     .name('blockOpened')
     .multipleAttribute()
     .keys(new Set(['name', 'description']))
-    .build(),
+    .validator((validators) =>
+      validators.strictAttributes({
+        optionalKeys: ['name'],
+        allowUnknownKeys: false,
+      })
+    )
+    .test()
+    .asdas.build(),
   messageTypeBuilder
     .name('blockClosed')
     .multipleAttribute()
     .keys(new Set(['name']))
+
     .build(),
   messageTypeBuilder
     .name('compilationStarted')
@@ -192,6 +237,26 @@ export const defaultTypeRepository = messageTypeRepository([
         'type',
       ])
     )
+    .validator((validators) =>
+      z.union([
+        z.object({
+          name: z.string(),
+          timestamp: z.string(),
+          message: z.string(),
+          details: z.string().optional(),
+          type: z.literal('comparisonFailure'),
+          expected: z.string().optional(),
+          actual: z.string().optional(),
+        }),
+        z.object({
+          name: z.string(),
+          timestamp: z.string(),
+          message: z.string(),
+          details: z.string().optional(),
+          type: z.string(),
+        }),
+      ])
+    )
     .build(),
   messageTypeBuilder
     .name('testStdOut')
@@ -207,6 +272,7 @@ export const defaultTypeRepository = messageTypeRepository([
     .name('testRetrySupport')
     .multipleAttribute()
     .keys(new Set(['enabled']))
+    .validators((validators) => [validators.strictAttributes()])
     .build<{ enabled: boolean }>({
       validate(rawKwargs) {
         if (rawKwargs.enabled !== 'true' && rawKwargs.enabled !== 'false')
@@ -229,6 +295,53 @@ export const defaultTypeRepository = messageTypeRepository([
     }),
 ])
 
-defaultTypeRepository
-  .getFactory('compilationFinished')({ rawKwargs: { compiler: 'test' } })
-  .validate()
+const builder = messageTypeBuilder
+  .name('blockOpened')
+  .multipleAttribute()
+  .keys(new Set(['name', 'description']))
+  .validator((validators) => {
+    const baseSchema = validators.strictAttributes({
+      optionalKeys: ['name'],
+      allowUnknownKeys: true,
+    })
+
+    baseSchema.merge(z.object)
+  })
+  .build()
+
+builder({ rawKwargs: { test: 'ok' } })
+
+const validators = validatorBuilder.multiAttribute(
+  new Set(['description', 'name'])
+)
+
+const schema = validators.strictAttributes({
+  optionalKeys: ['description'],
+  allowUnknownKeys: false,
+})
+
+type lol = z.infer<typeof schema>
+
+schema.parse({ description: 'ok', test: 'pl' }).dsadsad
+
+const schema2 = z.discriminatedUnion('type', [
+  z.object({
+    name: z.string(),
+    timestamp: z.string(),
+    message: z.string(),
+    details: z.string().optional(),
+    type: z.literal('comparisonFailure'),
+    expected: z.string().optional(),
+    actual: z.string().optional(),
+  }),
+  z.object({
+    name: z.string(),
+    timestamp: z.string(),
+    message: z.string(),
+    details: z.string().optional(),
+    type: z.string(),
+  }),
+])
+
+const ok = schema2.parse({ type: 'comparisonFailure' })
+if (ok.type === 'comparisonFailure') ok.expected
