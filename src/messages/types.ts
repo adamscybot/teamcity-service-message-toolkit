@@ -1,16 +1,8 @@
 import {
-  MultiAttributeMessageOpts,
-  SingleAttributeMessageOpts,
   SingleAttributeMessageTypeOpts,
   MultiAttributeMessageTypeOpts,
   MessageOpts,
-  MessageTypeOpts,
-} from './wrappers/message-type-builder.js'
-
-type IsLiteral<T> = T extends any ? (string extends T ? false : true) : never
-type TrimWhitespace<S extends string> = S extends ` ${infer R}`
-  ? TrimWhitespace<R>
-  : S
+} from './builder.js'
 
 export interface Message<MessageName extends string = string> {
   /**

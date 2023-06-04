@@ -3,7 +3,7 @@ import {
   Message,
   MultiAttributeMessage,
   SingleAttributeMessage,
-} from '../types.js'
+} from './types.js'
 
 export class MessageValidationError extends CustomError {
   public constructor(reason: string, message?: Message) {

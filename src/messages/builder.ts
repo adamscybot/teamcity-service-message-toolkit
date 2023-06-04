@@ -4,13 +4,9 @@ import {
   Message,
   MultiAttributeMessage,
   SingleAttributeMessage,
-} from '../types.js'
-import type { MessageTypeRepository } from '../repos/message-type-repository.js'
-import validators, {
-  InferValidatorType,
-  MessageValidator,
-  MultiAttributeMessageValidator,
-} from './schema-utils.js'
+} from './types.js'
+import type { MessageTypeRepository } from './repository.js'
+import schemaBuilder, { InferMultiAttributeMessageSchema } from './schema.js'
 
 export interface MessageTypeOpts<MessageName extends string = string> {
   /**
@@ -363,7 +359,7 @@ export type MultiAttributeMessageFactoryBuildOpts<
 export type MultipleAttributeMessageFactory<
   MessageName extends string,
   Keys extends string,
-  RawValidationSchema,
+  Schema extends ZodSchema,
   AttributeTypes extends Partial<Record<Keys, any>> = Partial<
     Record<Keys, string>
   >
@@ -375,6 +371,9 @@ export type MultipleAttributeMessageFactory<
   >
   /** Statically accessible property that defines for what message name this factory function handles. */
   messageName: MessageName
+
+  /** The built schema for this message type */
+  schema: Readonly<Schema>
 }
 
 /**
@@ -410,71 +409,63 @@ export default {
      * @see {@link https://www.jetbrains.com/help/teamcity/service-messages.html#Service+Messages+Formats|Teamcity Message Formats}
      */
     multipleAttribute: () => ({
-      /**
-       * Define the set of strings for each possible valid attribute name for the message type this factory will handle.
-       *
-       * @param keys The `Set` of known attribute names that this multi message handles.
-       */
-      keys: <const Keys extends string>(keys: Set<Keys>) => {
+      schema: <Schema extends ZodSchema>(
+        getSchema: (
+          schemas: ReturnType<typeof schemaBuilder.multiAttribute>
+        ) => InferMultiAttributeMessageSchema<Schema>
+      ) => {
+        type KeysOfUnion<T> = T extends Record<string, any>
+          ? Extract<keyof T, string>
+          : never
+        type Keys = KeysOfUnion<z.infer<Schema>>
+
+        let schema = getSchema(schemaBuilder.multiAttribute())
+
         return {
-          validator: <ValidationSchema extends MultiAttributeMessageValidator>(
-            getValidationSchema: (
-              schemas: ReturnType<typeof validators.multiAttribute<Keys>>
-            ) => InferValidatorType<Keys, ValidationSchema>
+          /**
+           * Construct the factory that can be used to generate a representation of a message as defined by the chain leading up to this point.
+           * @param messageTypeOpts The {@link MultiAttributeMessageFactoryBuildOpts} that defines aspects of the construct of the message type.
+           * @returns A {@link MultipleAttributeMessageFactory} that handles the defined message.
+           */
+          build: <
+            const AttributeTypes extends Partial<Record<Keys, any>> = Partial<
+              Record<Keys, string>
+            >
+          >(
+            messageTypeOpts?: MultiAttributeMessageFactoryBuildOpts<
+              MessageName,
+              Keys,
+              AttributeTypes
+            >
           ) => {
-            let validationSchema = getValidationSchema(
-              validators.multiAttribute<Keys>(keys)
-            )
-
-            return {
-              test: () => {
-                return {} as z.infer<ValidationSchema>
-              },
-              /**
-               * Construct the factory that can be used to generate a representation of a message as defined by the chain leading up to this point.
-               * @param messageTypeOpts The {@link MultiAttributeMessageFactoryBuildOpts} that defines aspects of the construct of the message type.
-               * @returns A {@link MultipleAttributeMessageFactory} that handles the defined message.
-               */
-              build: <
-                const AttributeTypes extends Partial<
-                  Record<Keys, any>
-                > = Partial<Record<Keys, string>>
-              >(
-                messageTypeOpts?: MultiAttributeMessageFactoryBuildOpts<
+            const messageFactory: MultipleAttributeMessageFactory<
+              MessageName,
+              Keys,
+              Schema,
+              AttributeTypes
+            > = (opts) =>
+              createMultiAttributeMessage<
+                MessageName,
+                Keys,
+                Schema,
+                AttributeTypes
+              >({
+                ...opts,
+                // Cast needed since the omit of `messageName` in `MultiAttributeMessageFactoryBuildOpts` removes `messageName`
+                // which causes TS to lose some needed context to resolve the merge.
+                ...(messageTypeOpts as MultiAttributeMessageTypeOpts<
                   MessageName,
                   Keys,
                   AttributeTypes
-                >
-              ) => {
-                const messageFactory: MultipleAttributeMessageFactory<
-                  MessageName,
-                  Keys,
-                  z.infer<ValidationSchema>,
-                  AttributeTypes
-                > = (opts) =>
-                  createMultiAttributeMessage<
-                    MessageName,
-                    Keys,
-                    ValidationSchema,
-                    AttributeTypes
-                  >({
-                    ...opts,
-                    // Cast needed since the omit of `messageName` in `MultiAttributeMessageFactoryBuildOpts` removes `messageName`
-                    // which causes TS to lose some needed context to resolve the merge.
-                    ...(messageTypeOpts as MultiAttributeMessageTypeOpts<
-                      MessageName,
-                      Keys,
-                      AttributeTypes
-                    >),
-                    messageName,
-                    keys,
-                  })
+                >),
+                messageName,
+                keys,
+              })
 
-                messageFactory.messageName = messageName
+            messageFactory.messageName = messageName
+            messageFactory.schema = schema
 
-                return messageFactory
-              },
-            }
+            return messageFactory
           },
         }
       },
