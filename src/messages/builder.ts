@@ -1,4 +1,4 @@
-import z, { ZodSchema } from 'zod'
+import z, { Schema, ZodObject, ZodSchema } from 'zod'
 import { MessageValidationError } from './errors.js'
 import {
   Message,
@@ -6,7 +6,10 @@ import {
   SingleAttributeMessage,
 } from './types.js'
 import type { MessageTypeRepository } from './repository.js'
-import schemaBuilder, { InferMultiAttributeMessageSchema } from './schema.js'
+import schemaBuilder, {
+  InferMultiAttributeMessageSchema,
+  RawKwargsOfMultiAttrSchema,
+} from './schema.js'
 
 export interface MessageTypeOpts<MessageName extends string = string> {
   /**
@@ -54,35 +57,12 @@ function createMessage<MessageName extends string = string>({
   }
 }
 
-type ValueAccessorOpt<ValueType> = {
-  /**
-   * All messages store values as strings, as that is the only type they can exist in a serialised log output.
-   * If desired, the representation that the consumer of the message accessed can differ from the underlying string type,
-   * but to do so, you must define the bidirectional serlisation/deserialisation behaviour.
-   *
-   * By default, string is used for the representation, which means this does not usually have to be defined.
-   */
-  accessor?: ValueAccessorMethods<ValueType>
-}
-
-type ValueAccessorOpts<ValueType> = ValueType extends string
-  ? ValueAccessorOpt<ValueType>
-  : Required<ValueAccessorOpt<ValueType>>
-
 export type SingleAttributeMessageTypeOpts<
-  ValueType,
-  MessageName extends string
+  MessageName extends string,
+  Schema extends ZodSchema
 > = MessageTypeOpts<MessageName> & {
-  /**
-   * The validation function for this message. If the object is not valid, it must throw a
-   * {@link MessageValidationError}.
-   *
-   * @param rawValue The underlying raw string value
-   * @returns If validation was successful.
-   * @throws A {@link MessageValidationError}
-   */
-  validate?: (rawValue: string | undefined) => boolean
-} & ValueAccessorOpts<ValueType>
+  schema: Schema
+}
 
 export type SingleAttributeMessageOpts = MessageOpts & {
   /**
@@ -92,233 +72,117 @@ export type SingleAttributeMessageOpts = MessageOpts & {
 }
 
 export function createSingleAttributeMessage<
-  ValueType = string,
-  MessageName extends string = string
+  MessageName extends string,
+  Schema extends ZodSchema
 >({
   messageName,
   rawValue,
   flowId,
-  validate,
-  accessor,
+  schema,
 }: SingleAttributeMessageOpts &
-  SingleAttributeMessageTypeOpts<
-    ValueType,
-    MessageName
-  >): SingleAttributeMessage<ValueType, MessageName> {
+  SingleAttributeMessageTypeOpts<MessageName, Schema>): SingleAttributeMessage<
+  MessageName,
+  Schema
+> {
   let _value = rawValue
+  let validatedValue: Zod.infer<Schema> | null = null
   let message = createMessage<MessageName>({
     messageName,
     flowId,
   })
 
-  const singleAttrMessage: SingleAttributeMessage<ValueType, MessageName> = {
+  const singleAttrMessage: SingleAttributeMessage<MessageName, Schema> = {
     ...message,
     getRawValue: () => _value,
     setRawValue(rawValue) {
+      validatedValue = null
       _value = rawValue
       return singleAttrMessage
     },
     getValue() {
-      return accessor?.fromString(_value!) ?? (_value as ValueType)
+      if (validatedValue === null) this.validate()
+      return validatedValue!
     },
-    setValue(value) {
-      _value = accessor?.toString(value) ?? (value as string)
-      return singleAttrMessage
-    },
+    // setValue(value) {
+    //   _value = accessor?.toString(value) ?? (value as string)
+    //   return singleAttrMessage
+    // },
     validate() {
-      try {
-        if (_value === undefined)
-          throw new MessageValidationError(
-            'No value was specified, which is required in single attribute messages.'
-          ).withMessage(singleAttrMessage)
+      validatedValue = schema.parse(rawValue)
 
-        try {
-          validate?.(_value)
-        } catch (e) {
-          if (e instanceof MessageValidationError) {
-            throw e.withMessage(singleAttrMessage)
-          }
-        }
-
-        return singleAttrMessage
-      } catch (e) {
-        throw e
-      }
+      return singleAttrMessage
     },
   }
 
   return singleAttrMessage
 }
 
-type NonStringKeys<T> = {
-  [K in keyof T]: T[K] extends string ? never : K
-}[keyof T]
-
-type OptionalKeys<T, Keys extends string> = Exclude<
-  keyof T | Keys,
-  NonStringKeys<T>
->
-
-type MandatoryAttributeAccessMethods<T> = {
-  [K in NonStringKeys<T>]: ValueAccessorMethods<T[K]>
-}
-
-type OptionalAttributeAccessMethods<T, Keys extends string> = {
-  [K in OptionalKeys<T, Keys>]?: ValueAccessorMethods<string>
-}
-
-type AttributeAccessor<
-  Keys extends string,
-  AttributeValues extends Partial<Record<Keys, any>> = Partial<
-    Record<Keys, string>
-  >
-> = MandatoryAttributeAccessMethods<AttributeValues> &
-  OptionalAttributeAccessMethods<AttributeValues, Keys>
-
-type AttributeAccessorOpt<
-  Keys extends string,
-  AttributeTypes extends Partial<Record<Keys, any>>
-> = {
-  /**
-   * All messages store values as strings, as that is the only type they can exist in a serialised log output.
-   * If desired, the representation that the consumer of the message accessed can differ from the underlying string type,
-   * but to do so, you must define the bidirectional serlisation/deserialisation behaviour.
-   *
-   * By default, string is used for the representation, which means this does not usually have to be defined.
-   */
-  accessors?: AttributeAccessor<Keys, AttributeTypes>
-}
-
-type AttributeAccessorOpts<
-  Keys extends string,
-  AttributeTypes extends Partial<Record<Keys, any>>
-> = AttributeTypes extends Partial<Record<Keys, string>>
-  ? AttributeAccessorOpt<Keys, AttributeTypes>
-  : Required<AttributeAccessorOpt<Keys, AttributeTypes>>
-
 export type MultiAttributeMessageTypeOpts<
   MessageName extends string,
-  Keys extends string,
-  AttributeTypes extends Partial<Record<Keys, any>> = Partial<
-    Record<Keys, string>
-  >
+  Schema extends Readonly<ZodSchema>
 > = MessageTypeOpts<MessageName> & {
   /**
    * A `Set` of strings that represents the list of possible valid attribute names for this
    * message.
    */
-  keys: Readonly<Set<Keys>>
-
-  /**
-   * The validation function for this message. If the object is not valid, it must throw a
-   * {@link MessageValidationError}.
-   *
-   * @param rawKwargs The underlying raw string values for each attribute
-   * @returns If validation was successful.
-   * @throws A {@link MessageValidationError}
-   */
-  validate?: (
-    rawKwargs: Partial<Record<Keys & ({} | string), string>>
-  ) => boolean
-  validationSchema?: (schema: ZodSchema) => any
-} & AttributeAccessorOpts<Keys, AttributeTypes>
-
-export type MultiAttributeMessageOpts<Keys extends string> = MessageOpts & {
-  /**
-   * An object literal mapping the attribute names (keys) to their initial string value in the form of the raw underlying string,
-   * or `undefined` if a given attribute is unset. At this stage, any validator that has been applied is not executed, so the typings
-   * of `rawKwargs` allow any input object as long as it is a flat object literal that maps strings representing arbitary
-   * attribute names to string values. This is to allow representations of malformed messages to exist. To validate, call
-   * `validate()` on a message object.
-   */
-  rawKwargs: Partial<Record<Keys & ({} | string), string>>
+  schema: Schema
 }
 
-function isAccessorAvailableForKey<
-  Keys extends string,
-  AttributeTypes extends Partial<Record<Keys, any>>
->(
-  key: string | number | symbol,
-  accessors: AttributeAccessor<Keys, AttributeTypes>
-): key is keyof AttributeAccessor<Keys, AttributeTypes> {
-  return key in accessors
-}
-
-function isKnownAttributeKey<Keys extends string>(
-  key: string | number | symbol,
-  keys: Set<string | number | symbol>
-): key is Keys {
-  return keys.has(key)
-}
+export type MultiAttributeMessageOpts<Schema extends Readonly<ZodSchema>> =
+  MessageOpts & {
+    /**
+     * An object literal mapping the attribute names (keys) to their initial string value in the form of the raw underlying string,
+     * or `undefined` if a given attribute is unset. At this stage, any validator that has been applied is not executed, so the typings
+     * of `rawKwargs` allow any input object as long as it is a flat object literal that maps strings representing arbitary
+     * attribute names to string values. This is to allow representations of malformed messages to exist. To validate, call
+     * `validate()` on a message object.
+     */
+    rawKwargs: RawKwargsOfMultiAttrSchema<Schema>
+  }
 
 function createMultiAttributeMessage<
   MessageName extends string,
-  Keys extends string,
-  ValidationSchema,
-  AttributeTypes extends Partial<Record<Keys, any>> = {}
+  Schema extends Readonly<ZodSchema>
 >({
   messageName,
   rawKwargs = {},
   flowId,
-  accessors,
-  validate,
-  keys,
-}: MultiAttributeMessageOpts<Keys> &
-  MultiAttributeMessageTypeOpts<
-    MessageName,
-    Keys,
-    AttributeTypes
-  >): MultiAttributeMessage<MessageName, Keys, AttributeTypes> {
+
+  schema,
+}: MultiAttributeMessageOpts<Schema> &
+  MultiAttributeMessageTypeOpts<MessageName, Schema>): MultiAttributeMessage<
+  MessageName,
+  Schema
+> {
   let message = createMessage<MessageName>({ messageName, flowId })
-
-  Object.keys(rawKwargs).forEach((key) => {
-    if (isKnownAttributeKey(key, keys)) return
-    console.warn(
-      `Unknown key '${key}' was found on message of type '${messageName}'`
-    )
-  })
-
+  let validatedKwargs: Zod.infer<Schema> | null = null
   let _rawKwargs = rawKwargs
 
-  const multiAttributeMessage: MultiAttributeMessage<
-    MessageName,
-    Keys,
-    AttributeTypes
-  > = {
+  const multiAttributeMessage: MultiAttributeMessage<MessageName, Schema> = {
     ...message,
     setRawAttr(key, value) {
+      validatedKwargs = null
       _rawKwargs[key] = value
       return multiAttributeMessage
     },
     getRawAttr(key) {
       return _rawKwargs[key]
     },
-    setAttr(key, value) {
-      let valToSet = value as string
-      if (accessors && isAccessorAvailableForKey(key, accessors)) {
-        valToSet = accessors[key].toString(value)
-      }
+    // setAttr(key, value) {
+    //   let valToSet = value as string
+    //   if (accessors && isAccessorAvailableForKey(key, accessors)) {
+    //     valToSet = accessors[key].toString(value)
+    //   }
 
-      _rawKwargs[key] = valToSet
-      return multiAttributeMessage
-    },
+    //   _rawKwargs[key] = valToSet
+    //   return multiAttributeMessage
+    // },
     getAttr(key) {
-      if (accessors && isAccessorAvailableForKey(key, accessors)) {
-        return accessors[key].fromString(_rawKwargs[key])
-      }
-
-      return _rawKwargs[key] as AttributeTypes[typeof key] extends never
-        ? string
-        : AttributeTypes[typeof key]
+      if (validatedKwargs === null) this.validate()
+      return validatedKwargs![key]
     },
     validate() {
-      try {
-        validate?.(_rawKwargs)
-      } catch (e) {
-        if (e instanceof MessageValidationError) {
-          throw e.withMessage(multiAttributeMessage)
-        }
-      }
+      validatedKwargs = schema.parse(rawKwargs)
 
       return multiAttributeMessage
     },
@@ -327,18 +191,13 @@ function createMultiAttributeMessage<
   return multiAttributeMessage
 }
 
-export type SingleAttributeMessageFactoryBuildOpts<
-  ValueType,
-  MessageName extends string
-> = Omit<SingleAttributeMessageTypeOpts<ValueType, MessageName>, 'messageName'>
-
 export type SingleAttributeMessageFactory<
-  ValueType,
-  MessageName extends string
+  MessageName extends string,
+  Schema extends ZodSchema
 > = {
   (opts: SingleAttributeMessageOpts): SingleAttributeMessage<
-    ValueType,
-    MessageName
+    MessageName,
+    Schema
   >
   /** Statically accessible property that defines for what message name this factory function handles. */
   messageName: MessageName
@@ -346,34 +205,22 @@ export type SingleAttributeMessageFactory<
 
 export type MultiAttributeMessageFactoryBuildOpts<
   MessageName extends string,
-  Keys extends string,
-  AttributeTypes extends Partial<Record<Keys, any>> = Partial<
-    Record<Keys, string>
-  >
-> = Omit<
-  MultiAttributeMessageTypeOpts<MessageName, Keys, AttributeTypes>,
-  'messageName' | 'keys'
-> &
-  AttributeAccessorOpts<Keys, AttributeTypes>
+  Schema extends Readonly<ZodSchema>
+> = Omit<MultiAttributeMessageTypeOpts<MessageName, Schema>, 'messageName'>
 
 export type MultipleAttributeMessageFactory<
   MessageName extends string,
-  Keys extends string,
-  Schema extends ZodSchema,
-  AttributeTypes extends Partial<Record<Keys, any>> = Partial<
-    Record<Keys, string>
-  >
+  Schema extends Readonly<ZodSchema>
 > = {
-  (opts: MultiAttributeMessageOpts<Keys>): MultiAttributeMessage<
+  (opts: MultiAttributeMessageOpts<Schema>): MultiAttributeMessage<
     MessageName,
-    Keys,
-    AttributeTypes
+    Schema
   >
   /** Statically accessible property that defines for what message name this factory function handles. */
   messageName: MessageName
 
   /** The built schema for this message type */
-  schema: Readonly<Schema>
+  schema: Schema
 }
 
 /**
@@ -414,11 +261,6 @@ export default {
           schemas: ReturnType<typeof schemaBuilder.multiAttribute>
         ) => InferMultiAttributeMessageSchema<Schema>
       ) => {
-        type KeysOfUnion<T> = T extends Record<string, any>
-          ? Extract<keyof T, string>
-          : never
-        type Keys = KeysOfUnion<z.infer<Schema>>
-
         let schema = getSchema(schemaBuilder.multiAttribute())
 
         return {
@@ -427,39 +269,26 @@ export default {
            * @param messageTypeOpts The {@link MultiAttributeMessageFactoryBuildOpts} that defines aspects of the construct of the message type.
            * @returns A {@link MultipleAttributeMessageFactory} that handles the defined message.
            */
-          build: <
-            const AttributeTypes extends Partial<Record<Keys, any>> = Partial<
-              Record<Keys, string>
-            >
-          >(
+          build: (
             messageTypeOpts?: MultiAttributeMessageFactoryBuildOpts<
               MessageName,
-              Keys,
-              AttributeTypes
+              Schema
             >
           ) => {
             const messageFactory: MultipleAttributeMessageFactory<
               MessageName,
-              Keys,
-              Schema,
-              AttributeTypes
+              Schema
             > = (opts) =>
-              createMultiAttributeMessage<
-                MessageName,
-                Keys,
-                Schema,
-                AttributeTypes
-              >({
+              createMultiAttributeMessage<MessageName, Schema>({
                 ...opts,
                 // Cast needed since the omit of `messageName` in `MultiAttributeMessageFactoryBuildOpts` removes `messageName`
                 // which causes TS to lose some needed context to resolve the merge.
                 ...(messageTypeOpts as MultiAttributeMessageTypeOpts<
                   MessageName,
-                  Keys,
-                  AttributeTypes
+                  Schema
                 >),
                 messageName,
-                keys,
+                schema,
               })
 
             messageFactory.messageName = messageName
@@ -475,33 +304,36 @@ export default {
      *
      * @see {@link https://www.jetbrains.com/help/teamcity/service-messages.html#Service+Messages+Formats|Teamcity Message Formats}
      */
-    singleAttribute: () => ({
-      /**
-       * Construct the factory that can be used to generate a representation of a message as defined by the chain leading up to this point.
-       * @param messageTypeOpts The {@link SingleAttributeMessageFactoryBuildOpts} that defines aspects of the construct of the message type.
-       * @returns A {@link SingleAttributeMessageFactory} that handles the defined message.
-       */
-      build<ValueType>(
-        messageTypeOpts?: SingleAttributeMessageFactoryBuildOpts<
-          ValueType,
-          MessageName
-        >
-      ) {
-        const messageFactory = (opts: SingleAttributeMessageOpts) =>
-          createSingleAttributeMessage<ValueType, MessageName>({
-            ...opts,
-            ...(messageTypeOpts as SingleAttributeMessageTypeOpts<
-              ValueType,
-              MessageName
-            >),
+    singleAttribute: () => {
+      const singleAttrBuilder = <Schema extends ZodSchema>(schema: Schema) => ({
+        schema<ProvidedSchema extends ZodSchema>(
+          getSchema: (
+            schemas: ReturnType<typeof schemaBuilder.singleAttribute>
+          ) => ProvidedSchema
+        ) {
+          return singleAttrBuilder<ProvidedSchema>(
+            getSchema(schemaBuilder.singleAttribute())
+          )
+        },
+        /**
+         * Construct the factory that can be used to generate a representation of a message as defined by the chain leading up to this point.
+         * @returns A {@link SingleAttributeMessageFactory} that handles the defined message.
+         */
+        build() {
+          const messageFactory = (opts: SingleAttributeMessageOpts) =>
+            createSingleAttributeMessage<MessageName, Schema>({
+              ...opts,
+              schema,
+              messageName,
+            })
 
-            messageName,
-          })
+          messageFactory.messageName = messageName
 
-        messageFactory.messageName = messageName
+          return messageFactory
+        },
+      })
 
-        return messageFactory
-      },
-    }),
+      return singleAttrBuilder(z.string())
+    },
   }),
 }

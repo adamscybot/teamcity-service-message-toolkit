@@ -1,10 +1,16 @@
+import { ZodObject, ZodSchema } from 'zod'
 import {
   SingleAttributeMessageTypeOpts,
   MultiAttributeMessageTypeOpts,
   MessageOpts,
 } from './builder.js'
+import {
+  KeysOfMultiAttrSchema,
+  StrictKeysOfMultiAttrSchema,
+  ValidatedAttrTypeForKey,
+} from './schema.js'
 
-export interface Message<MessageName extends string = string> {
+export interface Message<MessageName extends string> {
   /**
    * @see MessageOpts.flowId
    */
@@ -28,8 +34,8 @@ interface ValidateableMessage {
 }
 
 export interface SingleAttributeMessage<
-  ValueType,
-  MessageName extends string = string
+  MessageName extends string,
+  Schema extends ZodSchema
 > extends Message<MessageName>,
     ValidateableMessage {
   /**
@@ -45,15 +51,15 @@ export interface SingleAttributeMessage<
    * @returns The message object.
    */
   setRawValue(rawValue: string | undefined): this
-  /**
-   * Set the representational value of this message, using the type it is represented as. Usually, this
-   * is the same as the underlying raw value (a string), unless the message type
-   * dictates a different type.
-   *
-   * @param value The new representational value to set
-   * @returns The message object.
-   */
-  setValue(value: ValueType): this
+  // /**
+  //  * Set the representational value of this message, using the type it is represented as. Usually, this
+  //  * is the same as the underlying raw value (a string), unless the message type
+  //  * dictates a different type.
+  //  *
+  //  * @param value The new representational value to set
+  //  * @returns The message object.
+  //  */
+  // setValue(value: ValueType): this
   /**
    * Gets the representational value of this message in the form of the type it is represented as.
    * Usually, this  is the same as the underlying raw value (a string), unless the message type
@@ -61,13 +67,12 @@ export interface SingleAttributeMessage<
    *
    * @param value The representational value.
    */
-  getValue(): ValueType
+  getValue(): Zod.infer<Schema>
 }
 
 export interface MultiAttributeMessage<
   MessageName extends string,
-  Keys extends string,
-  AttributeTypes extends Partial<Record<Keys, any>> = {}
+  Schema extends Readonly<ZodSchema>
 > extends Message<MessageName>,
     ValidateableMessage {
   /**
@@ -76,7 +81,7 @@ export interface MultiAttributeMessage<
    * @param key The key of the attribute to get.
    * @returns The underlying raw string value for this attribute, or undefined if it was not set.
    */
-  getRawAttr(key: Keys & ({} | string)): string | undefined
+  getRawAttr(key: KeysOfMultiAttrSchema<Schema>): string | undefined
   /**
    * Set the underlying string that represents the value.
    *
@@ -84,7 +89,7 @@ export interface MultiAttributeMessage<
    * @param rawValue The underlying raw string value for this attribute, or undefined if it was not set.
    * @returns The message object.
    */
-  setRawAttr(key: Keys & ({} | string), rawValue: string): this
+  setRawAttr(key: KeysOfMultiAttrSchema<Schema>, rawValue: string): this
   /**
    * Gets the representational value of this message in the form of the type it is represented as.
    * Usually, this  is the same as the underlying raw value (a string), unless the message type
@@ -93,20 +98,20 @@ export interface MultiAttributeMessage<
    * @param key The key of the attribute to get.
    * @returns The representational value for this attribute.
    */
-  getAttr<Key extends Keys>(
+  getAttr<Key extends StrictKeysOfMultiAttrSchema<Schema>>(
     key: Key
-  ): AttributeTypes[Key] extends never ? string : AttributeTypes[Key]
-  /**
-   * Set the representational value of this message, using the type it is represented as. Usually, this
-   * is the same as the underlying raw value (a string), unless the message type
-   * dictates a different type.
-   *
-   * @param key The key of the attribute to set.
-   * @param value The new representational value to set for this attribute.
-   * @returns The message object.
-   */
-  setAttr<Key extends Keys>(
-    key: Key,
-    value: AttributeTypes[Key] extends never ? string : AttributeTypes[Key]
-  ): this
+  ): ValidatedAttrTypeForKey<Schema, Key>
+  // /**
+  //  * Set the representational value of this message, using the type it is represented as. Usually, this
+  //  * is the same as the underlying raw value (a string), unless the message type
+  //  * dictates a different type.
+  //  *
+  //  * @param key The key of the attribute to set.
+  //  * @param value The new representational value to set for this attribute.
+  //  * @returns The message object.
+  //  */
+  // setAttr<Key extends StrictKeysOfMultiAttrSchema<Schema>>(
+  //   key: Key,
+  //   value: AttributeTypes[Key] extends never ? string : AttributeTypes[Key]
+  // ): this
 }

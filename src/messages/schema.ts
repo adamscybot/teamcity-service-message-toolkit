@@ -1,4 +1,4 @@
-import z, { ZodObject, ZodSchema } from 'zod'
+import z, { ZodBoolean, ZodObject, ZodSchema, ZodType } from 'zod'
 
 /** Used to ensure that a provided schema is of an object shape (to accept multiple attributes). */
 export type InferMultiAttributeMessageSchema<Schema extends ZodSchema> =
@@ -7,6 +7,20 @@ export type InferMultiAttributeMessageSchema<Schema extends ZodSchema> =
       ? Schema
       : never
     : never
+
+export type StrictKeysOfMultiAttrSchema<Schema extends Readonly<ZodSchema>> =
+  keyof Zod.infer<Schema>
+
+export type KeysOfMultiAttrSchema<Schema extends Readonly<ZodSchema>> =
+  StrictKeysOfMultiAttrSchema<Schema> & ({} | string)
+
+export type RawKwargsOfMultiAttrSchema<Schema extends Readonly<ZodSchema>> =
+  Partial<Zod.input<Schema>> & Record<string, string>
+
+export type ValidatedAttrTypeForKey<
+  Schema extends Readonly<ZodSchema>,
+  Key extends StrictKeysOfMultiAttrSchema<Schema>
+> = Zod.infer<Schema>[Key]
 
 const schemaBuilder = {
   /**
@@ -78,7 +92,7 @@ const schemaBuilder = {
           attributeName: AttributeName,
           getAttrSchema?: (
             /** The default schema representing a required string to build on if desirable.*/
-            attrSchema: z.ZodString
+            defaultAttrSchema: z.ZodString
           ) => AttrSchema
         ) {
           const validatedAttrName = z.string().parse(attributeName)
@@ -104,7 +118,16 @@ const schemaBuilder = {
         },
       } as const)
 
-    return multiBuilder([z.object({}).catchall(z.string().optional())])
+    return multiBuilder([z.object({})])
+  },
+  singleAttribute() {
+    const singleBuilder = () => ({
+      default() {
+        return z.string()
+      },
+    })
+
+    return singleBuilder()
   },
 } as const
 

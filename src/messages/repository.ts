@@ -8,7 +8,7 @@ import { TC_STATISTICS_KEYS, TC_XML_TYPES } from './constants.js'
 
 type MessageFactory =
   | SingleAttributeMessageFactory<any, any>
-  | MultipleAttributeMessageFactory<any, any, any>
+  | MultipleAttributeMessageFactory<any, any>
 
 export type MessageTypesMap<
   MessageTypes extends Readonly<Array<Readonly<MessageFactory>>>
@@ -92,15 +92,23 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder.name('addBuildTag').singleAttribute().build(),
   messageTypeBuilder.name('removeBuildTag').singleAttribute().build(),
 
-  // TODO: Deal with these non-value non-attribute messages
-  messageTypeBuilder.name('enableServiceMessages').singleAttribute().build(),
-  messageTypeBuilder.name('disableServiceMessages').singleAttribute().build(),
+  messageTypeBuilder
+    .name('enableServiceMessages')
+    .singleAttribute()
+    .schema((builder) => builder.default().optional())
+    .build(),
+
+  messageTypeBuilder
+    .name('disableServiceMessages')
+    .singleAttribute()
+    .schema((builder) => builder.default().optional())
+    .build(),
 
   messageTypeBuilder
     .name('buildProblem')
     .multipleAttribute()
-    .schema((schema) =>
-      schema
+    .schema((builder) =>
+      builder
         .attribute('description')
         .attribute('identity', (attr) => attr.max(60).optional())
         .build()
@@ -109,8 +117,8 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('buildStatus')
     .multipleAttribute()
-    .schema((schema) =>
-      schema
+    .schema((builder) =>
+      builder
         .attribute('text')
         .attribute('status', (attr) => attr.optional())
         .build()
@@ -119,13 +127,13 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('setParameter')
     .multipleAttribute()
-    .schema((schema) => schema.attribute('name').attribute('value').build())
+    .schema((builder) => builder.attribute('name').attribute('value').build())
     .build(),
   messageTypeBuilder
     .name('buildStatisticValue')
     .multipleAttribute()
-    .schema((schema) =>
-      schema
+    .schema((builder) =>
+      builder
         .attribute('key', () => z.enum(TC_STATISTICS_KEYS))
         .attribute('value', () =>
           z.coerce.number().refine(
@@ -160,8 +168,8 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('importData')
     .multipleAttribute()
-    .schema((schema) => {
-      const baseImportDataSchema = schema
+    .schema((builder) => {
+      const baseImportDataSchema = builder
         .attribute('path')
         .attribute('verbose', () => z.coerce.boolean().default(false))
         .attribute('parseOutOfDate', () => z.coerce.boolean().default(false))
@@ -197,15 +205,15 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('notification')
     .multipleAttribute()
-    .schema((schema) =>
+    .schema((builder) =>
       z.discriminatedUnion('notifier', [
-        schema
+        builder
           .attribute('notifier', () => z.literal('slack'))
           .attribute('message')
           .attribute('sendTo')
           .attribute('connectionID', (attr) => attr.optional())
           .build(),
-        schema
+        builder
           .attribute('notifier', () => z.literal('email'))
           .attribute('message')
           .attribute('subject')
@@ -221,8 +229,8 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('buildStop')
     .multipleAttribute()
-    .schema((schema) =>
-      schema
+    .schema((builder) =>
+      builder
         .attribute('comment')
         .attribute('readdToQueue', () => z.coerce.boolean())
         .build()
@@ -231,8 +239,8 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('inspectionType')
     .multipleAttribute()
-    .schema((schema) =>
-      schema
+    .schema((builder) =>
+      builder
         .attribute('id', (attr) => attr.max(255))
         .attribute('name', (attr) => attr.max(255))
         .attribute('category', (attr) => attr.max(255))
@@ -243,8 +251,8 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('inspection')
     .multipleAttribute()
-    .schema((schema) =>
-      schema
+    .schema((builder) =>
+      builder
         .attribute('typeId', (attr) => attr.max(255))
         .attribute('message', (attr) => attr.max(4000))
         .attribute('file', (attr) => attr.max(4000))
@@ -260,8 +268,8 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('message')
     .multipleAttribute()
-    .schema((schema) =>
-      schema
+    .schema((builder) =>
+      builder
         .attribute('text')
         .attribute('errorDetails')
         .attribute('status', () =>
@@ -273,22 +281,22 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('flowStarted')
     .multipleAttribute()
-    .schema((schema) =>
-      schema.attribute('parent', (attr) => attr.optional()).build()
+    .schema((builder) =>
+      builder.attribute('parent', (attr) => attr.optional()).build()
     )
     .build(),
   messageTypeBuilder
     .name('flowFinished')
     .multipleAttribute()
-    .schema((schema) =>
-      schema.attribute('parent', (attr) => attr.optional()).build()
+    .schema((builder) =>
+      builder.attribute('parent', (attr) => attr.optional()).build()
     )
     .build(),
   messageTypeBuilder
     .name('blockOpened')
     .multipleAttribute()
-    .schema((schema) =>
-      schema
+    .schema((builder) =>
+      builder
         .attribute('name')
         .attribute('description', (attr) => attr.optional())
         .build()
@@ -297,17 +305,17 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('blockClosed')
     .multipleAttribute()
-    .schema((schema) => schema.attribute('name').build())
+    .schema((builder) => builder.attribute('name').build())
     .build(),
   messageTypeBuilder
     .name('compilationStarted')
     .multipleAttribute()
-    .schema((schema) => schema.attribute('compiler').build())
+    .schema((builder) => builder.attribute('compiler').build())
     .build(),
   messageTypeBuilder
     .name('compilationFinished')
     .multipleAttribute()
-    .schema((schema) => schema.attribute('compiler').build())
+    .schema((builder) => builder.attribute('compiler').build())
     .build(),
   messageTypeBuilder
     .name('testSuiteStarted')
@@ -322,7 +330,7 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('testStarted')
     .multipleAttribute()
-    .schema((schema) =>
+    .schema(() =>
       baseTestSchema
         .attribute('captureStandardOutput', (attr) =>
           z.coerce.boolean().default(false)
@@ -333,7 +341,7 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('testFinished')
     .multipleAttribute()
-    .schema((schema) =>
+    .schema(() =>
       baseTestSchema
         .attribute('duration', (attr) =>
           z.coerce.number().positive().int().optional()
@@ -344,14 +352,14 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('testIgnored')
     .multipleAttribute()
-    .schema((schema) =>
+    .schema(() =>
       baseTestSchema.attribute('message', (attr) => attr.optional()).build()
     )
     .build(),
   messageTypeBuilder
     .name('testFailed')
     .multipleAttribute()
-    .schema((schema) => {
+    .schema(() => {
       const baseTestFailedSchema = baseTestSchema
         .attribute('message')
         .attribute('details', (attr) => attr.optional())
@@ -370,18 +378,28 @@ export const defaultTypeRepository = messageTypeRepository([
   messageTypeBuilder
     .name('testStdOut')
     .multipleAttribute()
-    .schema((schema) => baseTestSchema.attribute('out').build())
+    .schema(() => baseTestSchema.attribute('out').build())
     .build(),
   messageTypeBuilder
     .name('testStdErr')
     .multipleAttribute()
-    .schema((schema) => baseTestSchema.attribute('out').build())
+    .schema(() => baseTestSchema.attribute('out').build())
     .build(),
   messageTypeBuilder
     .name('testRetrySupport')
     .multipleAttribute()
-    .schema((schema) =>
-      schema.attribute('enabled', () => z.coerce.boolean()).build()
+    .schema((builder) =>
+      builder.attribute('enabled', () => z.coerce.boolean()).build()
     )
     .build(),
 ])
+
+defaultTypeRepository
+  .getFactory('testRetrySupport')({ rawKwargs: {} })
+  .getAttr('enabled')
+
+const test = defaultTypeRepository.getFactory('testStdErr').schema._input
+
+defaultTypeRepository
+  .getFactory('publishArtifacts')({ rawValue: 'test' })
+  .getValue()
