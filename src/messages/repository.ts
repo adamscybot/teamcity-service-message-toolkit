@@ -5,27 +5,14 @@ import messageTypeBuilder, {
 } from './builder.js'
 import schemaBuilder from './schema.js'
 import { TC_STATISTICS_KEYS, TC_XML_TYPES } from './constants.js'
-
-type MessageFactory =
-  | SingleAttributeMessageFactory<any, any>
-  | MultipleAttributeMessageFactory<any, any>
-
-export type MessageTypesMap<
-  MessageTypes extends Readonly<Array<Readonly<MessageFactory>>>
-> = {
-  [K in MessageTypes[number]['messageName']]: Extract<
-    MessageTypes[number],
-    { messageName: K }
-  >
-}
-
-export interface MessageTypeRepository<
-  MessageTypes extends Readonly<Array<Readonly<MessageFactory>>>
-> {
-  getFactory<MessageType extends keyof MessageTypesMap<MessageTypes>>(
-    key: MessageType
-  ): void
-}
+import { desconstructMessageString } from '../parser/string-parse.js'
+import { MissingMessageTypeInRepository } from '../lib/errors.js'
+import {
+  MessageFactory,
+  MessageFactoryForLogLine,
+  MessageTypeRepository,
+  MessageTypesMap,
+} from './types.js'
 
 /**
  * Create a store of message types. The message repository takes a message factory
@@ -41,13 +28,14 @@ export interface MessageTypeRepository<
  * ])
  */
 export const messageTypeRepository = <
-  const MessageTypes extends Readonly<Array<Readonly<MessageFactory>>>
+  const MessageTypes extends Readonly<Array<MessageFactory>>
 >(
   messageTypes: MessageTypes
-) => {
+): MessageTypeRepository<MessageTypes> => {
   const _messageTypes: MessageTypesMap<MessageTypes> = Object.fromEntries(
     messageTypes.map((factory) => [factory.messageName, factory])
   ) as MessageTypesMap<MessageTypes>
+
   return {
     /**
      * Given a service message name that a message factory registered inside this repository handles,
@@ -55,6 +43,7 @@ export const messageTypeRepository = <
      *
      * @param key - The service message name that the desired message factory handles.
      * @returns The factory stored in the repository that handles the passed in service message name.
+     * @throws {MissingMessageTypeInRepository} if factory not registered in this repository for this name
      * @example
      * const myMessageTypeRepo = messageTypeRepository([
      *    messageTypeBuilder.name('exampleMessage').singleAttribute().build(),
@@ -64,9 +53,46 @@ export const messageTypeRepository = <
      * cosnt exampleMessage = factory({rawValue: 'test'})
      */
     getFactory<MessageType extends keyof MessageTypesMap<MessageTypes>>(
-      key: MessageType
+      messageName: MessageType
     ) {
-      return _messageTypes[key]
+      const factory = _messageTypes[messageName]
+      if (!factory) throw new MissingMessageTypeInRepository(this, messageName)
+
+      return factory
+    },
+
+    getFactories() {
+      return Object.freeze(_messageTypes)
+    },
+
+    parseStrict<const Line extends string>(line: Line) {
+      const parsed = desconstructMessageString(line)
+      const factory = this.getFactory(parsed!.messageName)
+      return factory({
+        rawKwargs: parsed?.kwargs ?? {},
+        rawValue: parsed?.value,
+      }) as ReturnType<
+        MessageFactoryForLogLine<
+          MessageTypeRepository<MessageTypes>,
+          Line,
+          never
+        >
+      >
+    },
+
+    parse<const Line extends string>(line: Line) {
+      const parsed = desconstructMessageString(line)
+      const factory = this.getFactory(parsed!.messageName)
+      return factory({
+        rawKwargs: parsed?.kwargs ?? {},
+        rawValue: parsed?.value,
+      }) as ReturnType<
+        MessageFactoryForLogLine<
+          MessageTypeRepository<MessageTypes>,
+          Line,
+          never
+        >
+      >
     },
   }
 }
@@ -83,7 +109,7 @@ const baseTestSchema = schemaBuilder
  *
  * @todo Allow configuring strictness of default validation
  */
-export const defaultTypeRepository = messageTypeRepository([
+export const defaultMessageTypeRepository = messageTypeRepository([
   messageTypeBuilder.name('buildNumber').singleAttribute().build(),
   messageTypeBuilder.name('publishArtifacts').singleAttribute().build(),
   messageTypeBuilder.name('progressMessage').singleAttribute().build(),
@@ -178,7 +204,7 @@ export const defaultTypeRepository = messageTypeRepository([
         )
 
       const importTypes = z.enum(TC_XML_TYPES)
-      return z.discriminatedUnion('type', [
+      return z.union([
         baseImportDataSchema
           .attribute('type', (attr) => z.literal(importTypes.Enum.findBugs))
           .attribute('findBugsHome')
@@ -206,7 +232,7 @@ export const defaultTypeRepository = messageTypeRepository([
     .name('notification')
     .multipleAttribute()
     .schema((builder) =>
-      z.discriminatedUnion('notifier', [
+      z.union([
         builder
           .attribute('notifier', () => z.literal('slack'))
           .attribute('message')
@@ -219,7 +245,7 @@ export const defaultTypeRepository = messageTypeRepository([
           .attribute('subject')
           .attribute('address', (attr) =>
             attr
-              .transform((val) => val.split(','))
+              .transform((val: string) => val.split(','))
               .pipe(z.array(z.string()).nonempty())
           )
           .build(),
@@ -364,14 +390,18 @@ export const defaultTypeRepository = messageTypeRepository([
         .attribute('message')
         .attribute('details', (attr) => attr.optional())
 
-      return z.discriminatedUnion('type', [
+      return z.union([
+        baseTestFailedSchema
+          .attribute('type', (attr) =>
+            attr.optional().refine((arg) => arg !== 'comparisonFailure')
+          )
+          .build(),
+
         baseTestFailedSchema
           .attribute('type', () => z.literal('comparisonFailure'))
           .attribute('expected', (attr) => attr.optional())
           .attribute('actual', (attr) => attr.optional())
           .build(),
-
-        baseTestFailedSchema.attribute('type').build(),
       ])
     })
     .build(),
@@ -393,13 +423,3 @@ export const defaultTypeRepository = messageTypeRepository([
     )
     .build(),
 ])
-
-defaultTypeRepository
-  .getFactory('testRetrySupport')({ rawKwargs: {} })
-  .getAttr('enabled')
-
-const test = defaultTypeRepository.getFactory('testStdErr').schema._input
-
-defaultTypeRepository
-  .getFactory('publishArtifacts')({ rawValue: 'test' })
-  .getValue()

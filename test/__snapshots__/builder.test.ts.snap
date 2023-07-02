@@ -1,0 +1,175 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Message Builder > Multi Attribute Messages > Message throws error when it violates schema > 
+      "[
+        {
+          \\"code\\": \\"invalid_type\\",
+          \\"expected\\": \\"number\\",
+          \\"received\\": \\"nan\\",
+          \\"path\\": [
+            \\"example\\"
+          ],
+          \\"message\\": \\"Expected number, received nan\\"
+        }
+      ]"
+     1`] = `
+"[
+  {
+    \\"code\\": \\"invalid_type\\",
+    \\"expected\\": \\"number\\",
+    \\"received\\": \\"nan\\",
+    \\"path\\": [
+      \\"example\\"
+    ],
+    \\"message\\": \\"Expected number, received nan\\"
+  }
+]"
+`;
+
+exports[`Message Builder > Multi Attribute Messages > Message throws error when it violates schema > 
+      "[
+        {
+          \\"code\\": \\"invalid_type\\",
+          \\"expected\\": \\"number\\",
+          \\"received\\": \\"nan\\",
+          \\"path\\": [
+            \\"example\\"
+          ],
+          \\"message\\": \\"Expected number, received nan\\"
+        }
+      ]"
+     2`] = `
+"[
+  {
+    \\"code\\": \\"invalid_type\\",
+    \\"expected\\": \\"number\\",
+    \\"received\\": \\"nan\\",
+    \\"path\\": [
+      \\"example\\"
+    ],
+    \\"message\\": \\"Expected number, received nan\\"
+  }
+]"
+`;
+
+exports[`Message Builder > Multi Attribute Messages > Message throws error when it violates schema > 
+      "[
+        {
+          \\"code\\": \\"invalid_type\\",
+          \\"expected\\": \\"number\\",
+          \\"received\\": \\"nan\\",
+          \\"path\\": [
+            \\"example\\"
+          ],
+          \\"message\\": \\"Expected number, received nan\\"
+        }
+      ]"
+     3`] = `
+"[
+  {
+    \\"code\\": \\"invalid_type\\",
+    \\"expected\\": \\"number\\",
+    \\"received\\": \\"nan\\",
+    \\"path\\": [
+      \\"example\\"
+    ],
+    \\"message\\": \\"Expected number, received nan\\"
+  }
+]"
+`;
+
+exports[`Message Builder > Multi Attribute Messages > Messages dont allow value to be undefined by default > 
+      "[
+        {
+          \\"code\\": \\"invalid_type\\",
+          \\"expected\\": \\"string\\",
+          \\"received\\": \\"undefined\\",
+          \\"path\\": [
+            \\"attr\\"
+          ],
+          \\"message\\": \\"Required\\"
+        }
+      ]"
+     1`] = `
+"[
+  {
+    \\"code\\": \\"invalid_type\\",
+    \\"expected\\": \\"string\\",
+    \\"received\\": \\"undefined\\",
+    \\"path\\": [
+      \\"attr\\"
+    ],
+    \\"message\\": \\"Required\\"
+  }
+]"
+`;
+
+exports[`Message Builder > Multi Attribute Messages > Messages dont allow value to be undefined by default > 
+      "[
+        {
+          \\"code\\": \\"invalid_type\\",
+          \\"expected\\": \\"string\\",
+          \\"received\\": \\"undefined\\",
+          \\"path\\": [
+            \\"attr\\"
+          ],
+          \\"message\\": \\"Required\\"
+        }
+      ]"
+     2`] = `
+"[
+  {
+    \\"code\\": \\"invalid_type\\",
+    \\"expected\\": \\"string\\",
+    \\"received\\": \\"undefined\\",
+    \\"path\\": [
+      \\"attr\\"
+    ],
+    \\"message\\": \\"Required\\"
+  }
+]"
+`;
+
+exports[`Message Builder > Single Attribute Messages > Message throws error when it violates schema > 
+        "[
+          {
+            \\"code\\": \\"invalid_type\\",
+            \\"expected\\": \\"number\\",
+            \\"received\\": \\"nan\\",
+            \\"path\\": [],
+            \\"message\\": \\"Expected number, received nan\\"
+          }
+        ]"
+       1`] = `
+"[
+  {
+    \\"code\\": \\"invalid_type\\",
+    \\"expected\\": \\"number\\",
+    \\"received\\": \\"nan\\",
+    \\"path\\": [],
+    \\"message\\": \\"Expected number, received nan\\"
+  }
+]"
+`;
+
+exports[`Message Builder > Single Attribute Messages > Message throws error when it violates schema > 
+        "[
+          {
+            \\"code\\": \\"invalid_type\\",
+            \\"expected\\": \\"number\\",
+            \\"received\\": \\"nan\\",
+            \\"path\\": [],
+            \\"message\\": \\"Expected number, received nan\\"
+          }
+        ]"
+       2`] = `
+"[
+  {
+    \\"code\\": \\"invalid_type\\",
+    \\"expected\\": \\"number\\",
+    \\"received\\": \\"nan\\",
+    \\"path\\": [],
+    \\"message\\": \\"Expected number, received nan\\"
+  }
+]"
+`;

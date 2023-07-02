@@ -1,15 +1,31 @@
-import z, { Schema, ZodObject, ZodSchema } from 'zod'
-import { MessageValidationError } from './errors.js'
+import { ZodError, ZodSchema, z } from 'zod'
+import { Chalk } from 'chalk'
 import {
   Message,
   MultiAttributeMessage,
   SingleAttributeMessage,
 } from './types.js'
-import type { MessageTypeRepository } from './repository.js'
+import type { MessageTypeRepository } from './types.js'
 import schemaBuilder, {
   InferMultiAttributeMessageSchema,
   RawKwargsOfMultiAttrSchema,
 } from './schema.js'
+import {
+  formatMultiAttrServiceMessage,
+  formatSingleAttrServiceMessage,
+} from '../lib/format.js'
+
+let util: typeof import('util')
+
+if (
+  typeof process !== 'undefined' &&
+  process.versions &&
+  process.versions.node
+) {
+  util = await import('util')
+}
+
+const chalk = new Chalk({ level: 2 })
 
 export interface MessageTypeOpts<MessageName extends string = string> {
   /**
@@ -17,6 +33,8 @@ export interface MessageTypeOpts<MessageName extends string = string> {
    * @see {@link https://www.jetbrains.com/help/teamcity/service-messages.html#Service+Messages+Formats | TeamCity Service Message Formats}
    **/
   messageName: MessageName
+
+  toServiceMessageString(): string
 }
 
 export interface MessageOpts {
@@ -30,37 +48,25 @@ export interface MessageOpts {
   flowId?: string
 }
 
-interface ValueAccessorMethods<ValueType> {
-  /**
-   * This function is called internally when a consumer accesses the value.
-   *
-   * @param rawValue The underlying serialised string that represents this value.
-   * @returns The desired representation of `rawValue` (deserialised).
-   */
-  fromString: (rawValue: string | undefined) => ValueType
-  /**
-   * This function is called internally when a consumer sets the value.
-   *
-   * @param value The desired representation of `rawValue` (deserialised).
-   * @returns The underlying serialised string that represents this value.
-   */
-  toString: (value: ValueType) => string
-}
-
 function createMessage<MessageName extends string = string>({
   messageName,
   flowId,
+  toServiceMessageString,
 }: MessageOpts & MessageTypeOpts<MessageName>): Message<MessageName> {
   return {
     flowId: () => flowId,
     messageName: () => messageName,
+    toServiceMessageString,
   }
 }
 
 export type SingleAttributeMessageTypeOpts<
   MessageName extends string,
   Schema extends ZodSchema
-> = MessageTypeOpts<MessageName> & {
+> = Omit<
+  MessageTypeOpts<MessageName>,
+  'toServiceMessageString' | 'toFriendlystring'
+> & {
   schema: Schema
 }
 
@@ -89,6 +95,8 @@ export function createSingleAttributeMessage<
   let message = createMessage<MessageName>({
     messageName,
     flowId,
+    toServiceMessageString: () =>
+      formatSingleAttrServiceMessage(messageName, _value, flowId),
   })
 
   const singleAttrMessage: SingleAttributeMessage<MessageName, Schema> = {
@@ -120,7 +128,7 @@ export function createSingleAttributeMessage<
 export type MultiAttributeMessageTypeOpts<
   MessageName extends string,
   Schema extends Readonly<ZodSchema>
-> = MessageTypeOpts<MessageName> & {
+> = Omit<MessageTypeOpts<MessageName>, 'toServiceMessageString'> & {
   /**
    * A `Set` of strings that represents the list of possible valid attribute names for this
    * message.
@@ -154,19 +162,30 @@ function createMultiAttributeMessage<
   MessageName,
   Schema
 > {
-  let message = createMessage<MessageName>({ messageName, flowId })
   let validatedKwargs: Zod.infer<Schema> | null = null
+  let zodErrors: ZodError | null = null
   let _rawKwargs = rawKwargs
+
+  let message = createMessage<MessageName>({
+    messageName,
+    flowId,
+    toServiceMessageString: () =>
+      formatMultiAttrServiceMessage(messageName, _rawKwargs, flowId),
+  })
 
   const multiAttributeMessage: MultiAttributeMessage<MessageName, Schema> = {
     ...message,
     setRawAttr(key, value) {
       validatedKwargs = null
+      zodErrors = null
       _rawKwargs[key] = value
       return multiAttributeMessage
     },
     getRawAttr(key) {
       return _rawKwargs[key]
+    },
+    getRawAttrs() {
+      return _rawKwargs
     },
     // setAttr(key, value) {
     //   let valToSet = value as string
@@ -181,10 +200,61 @@ function createMultiAttributeMessage<
       if (validatedKwargs === null) this.validate()
       return validatedKwargs![key]
     },
+    getAttrs() {
+      if (validatedKwargs === null) this.validate()
+      return validatedKwargs!
+    },
     validate() {
-      validatedKwargs = schema.parse(rawKwargs)
+      try {
+        validatedKwargs = schema.parse(rawKwargs)
+        zodErrors = null
+      } catch (e) {
+        validatedKwargs == null
+        if (e instanceof ZodError) {
+          zodErrors = e
+        }
+        throw e
+      }
 
       return multiAttributeMessage
+    },
+    ansiPrint() {
+      if (zodErrors) console.log(JSON.stringify(zodErrors))
+      return console.log(
+        `${chalk.bgAnsi256(24).ansi256(15)(`[${messageName}]`)} ${
+          validatedKwargs === null
+            ? zodErrors === null
+              ? chalk.bgAnsi256(102).ansi256(15)(`➖ UNVALIDATED `)
+              : `${chalk.bgAnsi256(217).ansi256(15)(
+                  `❌ INVALID (${zodErrors.issues
+                    .map((error) => `${error.path.join('.')}: ${error.message}`)
+                    .join(', ')}) `
+                )}`
+            : chalk.bgAnsi256(34).ansi256(15)(`✅ VALIDATED `)
+        } ${chalk.bgAnsi256(212).ansi256(15)(
+          ` 🪢  FLOW: ${this.flowId() ?? '<root>'} `
+        )}  •  ${Object.entries(this.getRawAttrs())
+          .reduce<string[]>(
+            (attrStrings, [name, value]) => [
+              ...attrStrings,
+
+              `${chalk.bgAnsi256(105).ansi256(15)(`🏷️  ${name}: `)}${
+                validatedKwargs !== null &&
+                //@ts-ignore
+                validatedKwargs.hasOwnProperty(name)
+                  ? chalk.bgAnsi256(105).ansi256(15)(
+                      //@ts-ignore
+                      validatedKwargs[name] + ' '
+                    )
+                  : chalk.bgAnsi256(105).ansi256(15)(`<unavailable> `)
+              }${chalk.bgAnsi256(97).ansi256(15)(
+                ` (raw: ${JSON.stringify(value)}) `
+              )}`,
+            ],
+            []
+          )
+          .join('  •  ')}`
+      )
     },
   }
 

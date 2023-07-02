@@ -1,4 +1,4 @@
-import z, { ZodBoolean, ZodObject, ZodSchema, ZodType } from 'zod'
+import { ZodObject, ZodSchema, z } from 'zod'
 
 /** Used to ensure that a provided schema is of an object shape (to accept multiple attributes). */
 export type InferMultiAttributeMessageSchema<Schema extends ZodSchema> =
@@ -15,7 +15,7 @@ export type KeysOfMultiAttrSchema<Schema extends Readonly<ZodSchema>> =
   StrictKeysOfMultiAttrSchema<Schema> & ({} | string)
 
 export type RawKwargsOfMultiAttrSchema<Schema extends Readonly<ZodSchema>> =
-  Partial<Zod.input<Schema>> & Record<string, string>
+  Partial<Record<keyof Zod.input<Schema>, string>> & Record<string, string>
 
 export type ValidatedAttrTypeForKey<
   Schema extends Readonly<ZodSchema>,
