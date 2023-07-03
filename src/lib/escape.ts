@@ -50,32 +50,3 @@ export const escape = (str: string) => {
 
   return result
 }
-
-export const ESCAPE_MAPPINGS: Record<string, string> = {
-  "'": "'",
-  p: '\u2029',
-  l: '\u2028',
-  x: '\u0085',
-  ']': ']',
-  '[': '[',
-  r: '\r',
-  n: '\n',
-  '|': '|',
-}
-
-export const unescape = (str: string) => {
-  if (!str) {
-    return ''
-  }
-  return str
-    .toString()
-    .replace(/\|\'/g, "'")
-    .replace(/\|p/g, '\u2029')
-    .replace(/\|l/g, '\u2028')
-    .replace(/\|x/g, '\u0085')
-    .replace(/\|\]/g, ']')
-    .replace(/\|\[/g, '[')
-    .replace(/\|r/g, '\r')
-    .replace(/\|n/g, '\n')
-    .replace(/\|\|/g, '|')
-}
