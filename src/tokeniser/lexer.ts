@@ -1,5 +1,31 @@
-import { Rule, Rules, states, keywords } from 'moo'
+import { Rule, Rules, states, Token as MooToken } from 'moo'
 import { SINGLE_CHAR_ESCAPE_MAPPINGS, TC_IDENT } from '../lib/consts'
+
+export type Token =
+  | (Omit<MooToken, 'type'> & {
+      type:
+        | TokenTypes.SERVICE_MESSAGE_IDENT
+        | TokenTypes.NON_SERVICE_MESSAGE_OUTPUT
+        | TokenTypes.PARAMETERS_OPEN
+        | TokenTypes.PARAMETERS_CLOSE
+        | TokenTypes.MESSAGE_NAME
+        | TokenTypes.SPACE
+        | TokenTypes.PROPERTY_ASSIGN_OPERATOR
+        | TokenTypes.PROPERTY_NAME
+        | TokenTypes.STRING_START
+        | TokenTypes.STRING_END
+        | TokenTypes.STRING_VALUE
+        | TokenTypes.LINE_TERMINATION
+        | TokenTypes.ERROR
+    })
+  | (Omit<MooToken, 'type' | 'value'> & {
+      type: TokenTypes.STRING_ESCAPE_SINGLE_CHAR
+      value: WrappedLiteralTokenValue
+    })
+  | (Omit<MooToken, 'type' | 'value'> & {
+      type: TokenTypes.STRING_ESCAPE_UNICODE
+      value: WrappedLiteralTokenValue
+    })
 
 /** All the possible token types that can represent a message */
 export enum TokenTypes {
@@ -29,20 +55,24 @@ export enum TokenTypes {
   STRING_ESCAPE_SINGLE_CHAR = 'stringEscapeSingleChar',
   /** A token representing an escape sequence for a unicode identifier */
   STRING_ESCAPE_UNICODE = 'stringEscapeUnicode',
+  /** A token representing that a new line was detected. Used for valid new lines only (new lines inside service message are not allowed) */
+  LINE_TERMINATION = 'lineTermination',
+  /** A token representing an error. Value will be the remaining input text after error was encountered. */
+  ERROR = 'error',
 }
 
 /** All the possible states in the internal stack of the lexer */
 export enum TokeniserStates {
-  MAIN = 'main',
-  SERVICE_MESSAGE = 'serviceMessage',
-  PARAMETERS = 'parameters',
-  VALUES = 'values',
-  FORCE_MESSAGE_END = 'forceMessageEnd',
-  SINGLE_ATTR_LITERAL = 'singleAttrLiteral',
-  MULTI_ATTR_LITERAL = 'multiAttrLiteral',
-  MULTIPLE_ATTRIBUTES_PROPERTY = 'multiAttributesProperty',
-  MULTIPLE_ATTRIBUTES_PROPERTY_ASSIGNMENT = 'multiAttributesPropertyAssignment',
-  MULTIPLE_ATTRIBUTES_PROPERY_RHS = 'multiAttributesPropertyRhs',
+  EXPECT_IDENT_OR_STDOUT = 'expectIdentOrStdout',
+  EXPECT_PARAMETERS_OPEN = 'expectParametersOpen',
+  EXPECT_MESSAGE_NAME = 'expectMessageName',
+  EXPECT_VALUES = 'expectValues',
+  EXPECT_PARAMETERS_CLOSE = 'expectParametersClose',
+  EXPECT_SINGLE_ATTRIBUTE_LITERAL = 'expectSingleAttributeLiteral',
+  EXPECT_MULTIPLE_ATTRIBUTE_PROPERTY_LITERAL = 'expectMultipleAttributePropertyLiteral',
+  EXPECT_MULTIPLE_ATTRIBUTE_PROPERTY_NAME = 'expectMultipleAttributePropertyName',
+  EXPECT_MULTIPLE_ATTRIBUTES_ASSIGNMENT_OPERATOR = 'expectMultipleAttributesAssignmentOperator',
+  EXPECT_MULTIPLE_ATTRIBUTE_PROPERTY_VALUE = 'expectMultipleAttributePropertyValue',
 }
 
 /**
@@ -83,6 +113,7 @@ export type TokenRuleBuilderOpts<
 > = {
   push?: TokeniserStates
   next?: TokeniserStates
+  error?: true
   state: TokeniserStates
   tokeniserOpts: TokeniserOpts
 } & AdditionalOpts
@@ -96,6 +127,16 @@ export type TokenRuleBuilderOpts<
  */
 export type TokenRuleBuilder<AdditionalOpts extends Record<string, any> = {}> =
   (opts: TokenRuleBuilderOpts<AdditionalOpts>) => Rule
+
+export type WrappedLiteralTokenValue = { unescaped: string; original: string }
+
+const createLiteralTokenValue = (
+  original: string,
+  unescaped: string
+): WrappedLiteralTokenValue => {
+  const wrapper = { unescaped, original } as WrappedLiteralTokenValue
+  return wrapper
+}
 
 const TOKEN_RULE_BUILDERS = {
   serviceMessageIdent: ({
@@ -125,6 +166,7 @@ const TOKEN_RULE_BUILDERS = {
     match: '[',
     ...opts,
   }),
+
   parametersClose: ({
     state,
     tokeniserOpts,
@@ -158,9 +200,12 @@ const TOKEN_RULE_BUILDERS = {
   }: TokenRuleBuilderOpts): Rule => ({
     match: /\|./,
     lineBreaks: false,
-    value: tokeniserOpts.escapeLiterals
-      ? (unescaped) => SINGLE_CHAR_ESCAPE_MAPPINGS[unescaped[1]] ?? unescaped[1]
-      : undefined,
+    value: (original) =>
+      createLiteralTokenValue(
+        original,
+        SINGLE_CHAR_ESCAPE_MAPPINGS[original[1]] ?? original[1]
+      ),
+
     ...opts,
   }),
 
@@ -170,11 +215,12 @@ const TOKEN_RULE_BUILDERS = {
     ...opts
   }: TokenRuleBuilderOpts): Rule => ({
     match: /\|0x[0-9][0-9][0-9][0-9]/,
-    value: tokeniserOpts.escapeLiterals
-      ? (unescaped) => {
-          return String.fromCharCode(parseInt(unescaped.slice(3), 16))
-        }
-      : undefined,
+    value: (original) =>
+      createLiteralTokenValue(
+        original,
+        String.fromCharCode(parseInt(original.slice(3), 16))
+      ),
+
     lineBreaks: false,
     ...opts,
   }),
@@ -204,12 +250,30 @@ const TOKEN_RULE_BUILDERS = {
         }),
     ...opts,
   }),
+
+  lineTermination: ({
+    state,
+    tokeniserOpts,
+    ...opts
+  }: TokenRuleBuilderOpts): Rule => ({
+    match: /[\r\n|\r|\n]+$/,
+    lineBreaks: true,
+    ...opts,
+  }),
+
+  error: ({ state, tokeniserOpts, ...opts }: TokenRuleBuilderOpts): Rule => ({
+    match: /./,
+    lineBreaks: true,
+    error: true,
+    ...opts,
+  }),
+
   propertyName: ({
     state,
     tokeniserOpts,
     ...opts
   }: TokenRuleBuilderOpts): Rule => ({
-    match: /[A-z0-9]+\s*(?==)/, // Only match if the propertyName is followed by any number of spaces (including 0) followed by a `=`
+    match: /[A-z0-9:]+\s*(?==)/, // Only match if the propertyName is followed by any number of spaces (including 0) followed by a `=`
     ...opts,
   }),
 
@@ -218,7 +282,7 @@ const TOKEN_RULE_BUILDERS = {
     tokeniserOpts,
     ...opts
   }: TokenRuleBuilderOpts): Rule => ({
-    match: /(?<=\[\s*)[A-z0-9]+/, // Only match if the messageName is preceded by any number of spaces (including 0) followed by a `]`
+    match: /(?<=\[\s*)[A-z0-9]+(?=\s|\])/, // Only match if the messageName is preceded by any number of spaces (including 0) followed by a `[`
     lineBreaks: true,
     ...opts,
   }),
@@ -349,12 +413,14 @@ export const tokeniser = ({
       stringEscapeSingleChar,
       stringEnd,
       stringValue,
+      error,
     }: Pick<
       StateBoundRuleBuilder,
       | 'stringEscapeUnicode'
       | 'stringEscapeSingleChar'
       | 'stringEnd'
       | 'stringValue'
+      | 'error'
     >,
     { next }: { next: TokeniserStates }
   ) => ({
@@ -362,6 +428,7 @@ export const tokeniser = ({
     ...stringEscapeSingleChar(),
     ...stringEnd({ next }),
     ...stringValue(),
+    ...error(),
   })
 
   type StateBoundRuleBuilder = {
@@ -410,169 +477,108 @@ export const tokeniser = ({
     }
   }
 
-  console.log({
-    ...state(
-      TokeniserStates.MAIN,
-      ({ serviceMessageIdent, nonServiceMessageOutput }) => ({
-        ...serviceMessageIdent({ push: TokeniserStates.SERVICE_MESSAGE }),
-        ...nonServiceMessageOutput(),
-      })
-    ),
-
-    ...state(TokeniserStates.SERVICE_MESSAGE, ({ parametersOpen }) => ({
-      ...parametersOpen({ push: TokeniserStates.PARAMETERS }),
-    })),
-
-    ...state(
-      TokeniserStates.PARAMETERS,
-      ({ parametersClose, messageName, space }) => ({
-        ...parametersClose({ push: TokeniserStates.MAIN }),
-        ...messageName({ push: TokeniserStates.VALUES }),
-        ...space(),
-      })
-    ),
-
-    ...state(
-      TokeniserStates.VALUES,
-      ({ stringStart, propertyName, space }) => ({
-        ...stringStart({ next: TokeniserStates.SINGLE_ATTR_LITERAL }),
-        ...propertyName({
-          push: TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERTY_ASSIGNMENT,
-        }),
-        ...space(),
-      })
-    ),
-
-    ...state(
-      TokeniserStates.FORCE_MESSAGE_END,
-      ({ space, parametersClose }) => ({
-        ...space(),
-        ...parametersClose({ push: TokeniserStates.MAIN }),
-      })
-    ),
-
-    ...state(TokeniserStates.SINGLE_ATTR_LITERAL, (builders) =>
-      literal(builders, {
-        next: TokeniserStates.FORCE_MESSAGE_END,
-      })
-    ),
-
-    ...state(
-      TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERTY,
-      ({ propertyName, parametersClose, space }) => ({
-        ...parametersClose({ push: TokeniserStates.MAIN }),
-        ...propertyName({
-          push: TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERTY_ASSIGNMENT,
-        }),
-        ...space(),
-      })
-    ),
-
-    ...state(
-      TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERTY_ASSIGNMENT,
-      ({ propertyAssignOperator, space }) => ({
-        ...space(),
-        ...propertyAssignOperator({
-          push: TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERY_RHS,
-        }),
-      })
-    ),
-
-    ...state(
-      TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERY_RHS,
-      ({ stringStart, space }) => ({
-        ...space(),
-        ...stringStart({ next: TokeniserStates.MULTI_ATTR_LITERAL }),
-      })
-    ),
-
-    ...state(TokeniserStates.MULTI_ATTR_LITERAL, (builders) =>
-      literal(builders, {
-        next: TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERTY,
-      })
-    ),
-  })
-
   return states({
     ...state(
-      TokeniserStates.MAIN,
-      ({ serviceMessageIdent, nonServiceMessageOutput }) => ({
-        ...serviceMessageIdent({ push: TokeniserStates.SERVICE_MESSAGE }),
+      TokeniserStates.EXPECT_IDENT_OR_STDOUT,
+      ({ serviceMessageIdent, nonServiceMessageOutput, lineTermination }) => ({
+        ...serviceMessageIdent({
+          push: TokeniserStates.EXPECT_PARAMETERS_OPEN,
+        }),
+        ...lineTermination(),
         ...nonServiceMessageOutput(),
       })
     ),
 
-    ...state(TokeniserStates.SERVICE_MESSAGE, ({ parametersOpen }) => ({
-      ...parametersOpen({ push: TokeniserStates.PARAMETERS }),
-    })),
-
     ...state(
-      TokeniserStates.PARAMETERS,
-      ({ parametersClose, messageName, space }) => ({
-        ...parametersClose({ push: TokeniserStates.MAIN }),
-        ...messageName(),
-        ...space({ push: TokeniserStates.VALUES }),
+      TokeniserStates.EXPECT_PARAMETERS_OPEN,
+      ({ parametersOpen, error }) => ({
+        ...parametersOpen({ push: TokeniserStates.EXPECT_MESSAGE_NAME }),
+        ...error(),
       })
     ),
 
     ...state(
-      TokeniserStates.VALUES,
-      ({ stringStart, propertyName, space }) => ({
-        ...stringStart({ next: TokeniserStates.SINGLE_ATTR_LITERAL }),
+      TokeniserStates.EXPECT_MESSAGE_NAME,
+      ({ parametersClose, messageName, space, error }) => ({
+        ...messageName({ push: TokeniserStates.EXPECT_VALUES }),
+        ...space(),
+        ...parametersClose({ push: TokeniserStates.EXPECT_IDENT_OR_STDOUT }),
+        ...error(),
+      })
+    ),
+
+    ...state(
+      TokeniserStates.EXPECT_VALUES,
+      ({ stringStart, propertyName, space, parametersClose, error }) => ({
+        ...parametersClose({ push: TokeniserStates.EXPECT_IDENT_OR_STDOUT }),
+        ...stringStart({
+          next: TokeniserStates.EXPECT_SINGLE_ATTRIBUTE_LITERAL,
+        }),
         ...propertyName({
-          push: TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERTY_ASSIGNMENT,
+          push: TokeniserStates.EXPECT_MULTIPLE_ATTRIBUTES_ASSIGNMENT_OPERATOR,
         }),
         ...space(),
+        ...error(),
       })
     ),
 
     ...state(
-      TokeniserStates.FORCE_MESSAGE_END,
-      ({ space, parametersClose }) => ({
+      TokeniserStates.EXPECT_PARAMETERS_CLOSE,
+      ({ space, parametersClose, error }) => ({
         ...space(),
-        ...parametersClose({ push: TokeniserStates.MAIN }),
+        ...parametersClose({ push: TokeniserStates.EXPECT_IDENT_OR_STDOUT }),
+        ...error(),
       })
     ),
 
-    ...state(TokeniserStates.SINGLE_ATTR_LITERAL, (builders) =>
+    ...state(TokeniserStates.EXPECT_SINGLE_ATTRIBUTE_LITERAL, (builders) =>
       literal(builders, {
-        next: TokeniserStates.FORCE_MESSAGE_END,
+        next: TokeniserStates.EXPECT_PARAMETERS_CLOSE,
       })
     ),
 
     ...state(
-      TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERTY,
-      ({ propertyName, parametersClose, space }) => ({
-        ...parametersClose({ push: TokeniserStates.MAIN }),
+      TokeniserStates.EXPECT_MULTIPLE_ATTRIBUTE_PROPERTY_NAME,
+      ({ propertyName, parametersClose, space, error }) => ({
+        ...parametersClose({ push: TokeniserStates.EXPECT_IDENT_OR_STDOUT }),
         ...propertyName({
-          push: TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERTY_ASSIGNMENT,
+          push: TokeniserStates.EXPECT_MULTIPLE_ATTRIBUTES_ASSIGNMENT_OPERATOR,
         }),
         ...space(),
+        ...error(),
       })
     ),
 
     ...state(
-      TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERTY_ASSIGNMENT,
-      ({ propertyAssignOperator, space }) => ({
+      TokeniserStates.EXPECT_MULTIPLE_ATTRIBUTES_ASSIGNMENT_OPERATOR,
+      ({ propertyAssignOperator, space, error, parametersClose }) => ({
         ...space(),
         ...propertyAssignOperator({
-          push: TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERY_RHS,
+          push: TokeniserStates.EXPECT_MULTIPLE_ATTRIBUTE_PROPERTY_VALUE,
         }),
+        ...parametersClose({ push: TokeniserStates.EXPECT_IDENT_OR_STDOUT }),
+        ...error(),
       })
     ),
 
     ...state(
-      TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERY_RHS,
-      ({ stringStart, space }) => ({
+      TokeniserStates.EXPECT_MULTIPLE_ATTRIBUTE_PROPERTY_VALUE,
+      ({ stringStart, space, error, parametersClose }) => ({
         ...space(),
-        ...stringStart({ next: TokeniserStates.MULTI_ATTR_LITERAL }),
+        ...stringStart({
+          next: TokeniserStates.EXPECT_MULTIPLE_ATTRIBUTE_PROPERTY_LITERAL,
+        }),
+        ...parametersClose({ push: TokeniserStates.EXPECT_IDENT_OR_STDOUT }),
+        ...error({ push: TokeniserStates.EXPECT_PARAMETERS_CLOSE }),
       })
     ),
 
-    ...state(TokeniserStates.MULTI_ATTR_LITERAL, (builders) =>
-      literal(builders, {
-        next: TokeniserStates.MULTIPLE_ATTRIBUTES_PROPERTY,
-      })
+    ...state(
+      TokeniserStates.EXPECT_MULTIPLE_ATTRIBUTE_PROPERTY_LITERAL,
+      (builders) =>
+        literal(builders, {
+          next: TokeniserStates.EXPECT_MULTIPLE_ATTRIBUTE_PROPERTY_NAME,
+        })
     ),
   } satisfies Record<string, Partial<Record<TokenTypes, Rules[string]>>>)
 }

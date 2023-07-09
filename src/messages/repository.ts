@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import messageTypeBuilder, {
+  CreateMessageTypeBuilder,
   MultipleAttributeMessageFactory,
   SingleAttributeMessageFactory,
+  createMessageTypeBuilder,
 } from './builder.js'
 import schemaBuilder from './schema.js'
 import { TC_STATISTICS_KEYS, TC_XML_TYPES } from './constants.js'
@@ -10,7 +12,9 @@ import { MissingMessageTypeInRepository } from '../lib/errors.js'
 import {
   MessageFactory,
   MessageFactoryForLogLine,
+  MessageFactoryMap,
   MessageTypeRepository,
+  MessageTypeRepositoryBuilder,
   MessageTypesMap,
 } from './types.js'
 
@@ -96,6 +100,45 @@ export const messageTypeRepository = <
     },
   }
 }
+
+function createRepositoryBuilder<BMap extends MessageFactoryMap = {}>(
+  builders: BMap = {} as BMap
+) {
+  const repositoryBuilder: MessageTypeRepositoryBuilder<BMap> = {
+    addMessageType<
+      const MessageName extends string,
+      const Factory extends MessageFactory
+    >(
+      messageFactoryCallback: (
+        messageTypeBuilder: ReturnType<CreateMessageTypeBuilder<BMap>>
+      ) => Factory & { messageName: MessageName }
+    ) {
+      const messageTypeBuilder = createMessageTypeBuilder<BMap>()
+      const messageFactory = messageFactoryCallback(messageTypeBuilder)
+      type UpdatedMessageFactoryMap = BMap & { [K in MessageName]: Factory }
+      // @ts-ignore
+      const newBuilders: UpdatedMessageFactoryMap = {
+        ...builders,
+        [messageFactory.messageName]: messageFactory,
+      } as const
+      return createRepositoryBuilder<UpdatedMessageFactoryMap>(newBuilders)
+    },
+  }
+  return repositoryBuilder
+}
+
+const repositoryBuilder = createRepositoryBuilder()
+
+repositoryBuilder
+  .addMessageType((builder) => builder.name('yrdy').singleAttribute().build())
+  .addMessageType((builder) => builder.name('test').singleAttribute().build())
+  .addMessageType((builder) =>
+    builder
+      .name('buildNumber')
+      .multipleAttribute()
+      .schema((schema) => schema.attribute('test').build())
+      .build()
+  )
 
 const baseTestSchema = schemaBuilder
   .multiAttribute()
@@ -347,6 +390,7 @@ export const defaultMessageTypeRepository = messageTypeRepository([
     .name('testSuiteStarted')
     .multipleAttribute()
     .schema(() => baseTestSchema.build())
+    .blockEndsWith('')
     .build(),
   messageTypeBuilder
     .name('testSuiteFinished')

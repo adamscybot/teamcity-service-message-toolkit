@@ -1,70 +1,56 @@
-export enum TokenType {
-    IDENT_START = 'IDENT_START',
-    PARAMETERS_BLOCK_OPEN = 'PARAMETERS_BLOCK_OPEN',
-    PARAMETERS_BLOCK_CLOSE = 'PARAMETERS_BLOCK_CLOSE',
-    MESSAGE_NAME = 'MESSAGE_NAME',
-    ATTRIBUTE_NAME = 'ATTRIBUTE_NAME',
-    LITERAL = 'LITERAL',
-    NONE_SERVICE_MESSAGE_TEXT = 'NONE_SERVICE_MESSAGE_TEXT',
+import { Lexer } from 'moo'
+import { Transformer, TransformStream } from 'node:stream/web'
+
+import { Token, TokeniserOpts, tokeniser } from './lexer.js'
+import { TransformerTransformCallback } from 'stream/web'
+
+class TokeniseTransformer implements Transformer<string, Token> {
+  #previous = ''
+  tokeniser: Lexer
+
+  constructor(opts?: TokeniserOpts) {
+    this.tokeniser = tokeniser(opts)
   }
-  
-  type TokenObj<
-    TokenType,
-    AdditionalMetadata extends {} | undefined = undefined
-  > = {
-    type: TokenType
-    contents: string
-    metadata: {
-      start: { line: number; col: number }
-      end?: { line: number; col: number }
-    } & AdditionalMetadata
-  }
-  
-  export type Token =
-    | TokenObj<TokenType.IDENT_START>
-    | TokenObj<TokenType.PARAMETERS_BLOCK_OPEN>
-    | TokenObj<TokenType.PARAMETERS_BLOCK_CLOSE>
-    | TokenObj<TokenType.ATTRIBUTE_NAME>
-    | TokenObj<TokenType.LITERAL, { unescapedContents: string }>
-    | TokenObj<TokenType.NONE_SERVICE_MESSAGE_TEXT>
-  
-  
-  const TOKENISER_REGEX_MAP: Record<TokenType, RegExp> = {
-      ATTRIBUTE_NAME: //
-  } as const
-  
-  export class TokeniserTransformStream extends TransformStream<string> {
-      protected tokenRegex = 
-    protected lastPushedToken: Token | null
-  
-    constructor() {
-      let that = this
-      super({
-        start() {},
-        async transform(chunk, controller) {
-          chunk = await chunk
-          switch (typeof chunk) {
-            case 'object':
-              if (chunk === null) {
-                controller.terminate()
-                return
-              }
-            case 'string':
-              const buffer = [...chunk]
-              while (buffer.length > 0) {
-                  const char = paramsBuffer.shift()
-              }
-              break
-            default:
-              controller.error(
-                `Cannot send ${typeof chunk} as an input to \`TokeniserTransformStream\``
-              )
-              break
-          }
-        },
-      })
+
+  transform: TransformerTransformCallback<string, Token> | undefined = (
+    chunk,
+    controller
+  ) => {
+    let startSearch = this.#previous.length
+    this.#previous += chunk
+    while (true) {
+      const eolIndex = this.#previous.indexOf('\n', startSearch)
+      if (eolIndex < 0) break
+      const line = this.#previous.slice(0, eolIndex + 1)
+      this.tokeniser.reset(line)
+      try {
+        for (let token of this.tokeniser) {
+          controller.enqueue(token as Token)
+        }
+      } catch (e) {
+        console.error(e)
+      }
+      this.#previous = this.#previous.slice(eolIndex + 1)
+      startSearch = 0
     }
-  
-    protected
   }
-  
+
+  flush: TransformerFlushCallback<Token> | undefined = (controller) => {
+    if (this.#previous.length > 0) {
+      this.tokeniser.reset(this.#previous)
+      try {
+        for (let token of this.tokeniser) {
+          controller.enqueue(token as Token)
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
+  }
+}
+
+export class TokeniserStream extends TransformStream<string, Token> {
+  constructor(opts?: TokeniserOpts) {
+    super(new TokeniseTransformer(opts))
+  }
+}

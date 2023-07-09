@@ -5,6 +5,7 @@ import {
   ValidatedAttrTypeForKey,
 } from './schema.js'
 import {
+  CreateMessageTypeBuilder,
   MultipleAttributeMessageFactory,
   SingleAttributeMessageFactory,
 } from './builder.js'
@@ -73,6 +74,8 @@ export interface SingleAttributeMessage<
    * @param value The representational value.
    */
   getValue(): Zod.infer<Schema>
+
+  ansi(): string
 }
 
 export interface MultiAttributeMessage<
@@ -135,7 +138,7 @@ export interface MultiAttributeMessage<
   //   key: Key,
   //   value: AttributeTypes[Key] extends never ? string : AttributeTypes[Key]
   // ): this
-  ansiPrint(): void
+  ansi(): string
 }
 
 export type MessageFactory =
@@ -167,6 +170,19 @@ export interface MessageTypeRepository<
     line: Line
   ): ReturnType<MessageFactoryForLogLine<this, Line>>
 }
+
+export type MessageTypeRepositoryBuilder<BMap extends MessageFactoryMap = {}> =
+  {
+    addMessageType<MessageName extends string, Factory extends MessageFactory>(
+      messageFactoryCallback: (
+        messageTypeBuilder: ReturnType<CreateMessageTypeBuilder<BMap>>
+      ) => Factory & { messageName: MessageName }
+    ): MessageTypeRepositoryBuilder<
+      Readonly<BMap & Readonly<{ [K in MessageName]: Factory }>>
+    >
+  }
+
+export type MessageFactoryMap = Readonly<{ [K: string]: MessageFactory }>
 
 type TrimWhitespace<S extends string> = S extends ` ${infer R}`
   ? TrimWhitespace<R>

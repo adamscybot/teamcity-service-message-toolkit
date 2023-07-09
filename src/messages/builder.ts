@@ -5,7 +5,11 @@ import {
   MultiAttributeMessage,
   SingleAttributeMessage,
 } from './types.js'
-import type { MessageTypeRepository } from './types.js'
+import type {
+  MessageFactoryMap,
+  MessageTypeRepository,
+  MessageTypeRepositoryBuilder,
+} from './types.js'
 import schemaBuilder, {
   InferMultiAttributeMessageSchema,
   RawKwargsOfMultiAttrSchema,
@@ -92,6 +96,8 @@ export function createSingleAttributeMessage<
 > {
   let _value = rawValue
   let validatedValue: Zod.infer<Schema> | null = null
+  let zodErrors: ZodError | null = null
+
   let message = createMessage<MessageName>({
     messageName,
     flowId,
@@ -116,9 +122,43 @@ export function createSingleAttributeMessage<
     //   return singleAttrMessage
     // },
     validate() {
-      validatedValue = schema.parse(rawValue)
+      try {
+        validatedValue = schema.parse(rawValue)
+        zodErrors = null
+      } catch (e) {
+        validatedValue == null
+        if (e instanceof ZodError) {
+          zodErrors = e
+        }
+        throw e
+      }
 
       return singleAttrMessage
+    },
+
+    ansi() {
+      const seperator = chalk.bgAnsi256(253)('')
+      return `${chalk.bgAnsi256(24).ansi256(15)(`[${messageName}] `)}${
+        validatedValue === null
+          ? zodErrors === null
+            ? chalk.bgAnsi256(102).ansi256(15)(`➖ UNVALIDATED `)
+            : `${chalk.bgAnsi256(217).ansi256(15)(
+                `❌ INVALID (${zodErrors.issues
+                  .map((error) => `${error.path.join('.')}: ${error.message}`)
+                  .join(', ')}) `
+              )}`
+          : chalk.bgAnsi256(34).ansi256(15)(`✅ VALIDATED `)
+      } ${chalk.bgAnsi256(212).ansi256(15)(
+        ` 🪢  FLOW: ${this.flowId() ?? '<root>'} `
+      )} ${seperator}${chalk.bgAnsi256(105).ansi256(15)(`🏷️  value: `)}${
+        validatedValue !== null
+          ? //@ts-ignore
+            chalk.bgAnsi256(105).ansi256(15)(
+              //@ts-ignore
+              validatedValue.replace('\r', '\\r').replace('\n', '\\n') + ' '
+            )
+          : chalk.bgAnsi256(105).ansi256(15)(`<unavailable> `)
+      }${chalk.bgAnsi256(97).ansi256(15)(` (raw: ${JSON.stringify(_value)}) `)}`
     },
   }
 
@@ -218,43 +258,43 @@ function createMultiAttributeMessage<
 
       return multiAttributeMessage
     },
-    ansiPrint() {
-      if (zodErrors) console.log(JSON.stringify(zodErrors))
-      return console.log(
-        `${chalk.bgAnsi256(24).ansi256(15)(`[${messageName}]`)} ${
-          validatedKwargs === null
-            ? zodErrors === null
-              ? chalk.bgAnsi256(102).ansi256(15)(`➖ UNVALIDATED `)
-              : `${chalk.bgAnsi256(217).ansi256(15)(
-                  `❌ INVALID (${zodErrors.issues
-                    .map((error) => `${error.path.join('.')}: ${error.message}`)
-                    .join(', ')}) `
-                )}`
-            : chalk.bgAnsi256(34).ansi256(15)(`✅ VALIDATED `)
-        } ${chalk.bgAnsi256(212).ansi256(15)(
-          ` 🪢  FLOW: ${this.flowId() ?? '<root>'} `
-        )}  •  ${Object.entries(this.getRawAttrs())
-          .reduce<string[]>(
-            (attrStrings, [name, value]) => [
-              ...attrStrings,
+    ansi() {
+      const seperator = ''
+      return `${chalk.bgAnsi256(24).ansi256(15)(`[${messageName}] `)}${
+        validatedKwargs === null
+          ? zodErrors === null
+            ? chalk.bgAnsi256(102).ansi256(15)(`➖ UNVALIDATED `)
+            : `${chalk.bgAnsi256(217).ansi256(15)(
+                `❌ INVALID (${zodErrors.issues
+                  .map((error) => `${error.path.join('.')}: ${error.message}`)
+                  .join(', ')}) `
+              )}`
+          : chalk.bgAnsi256(34).ansi256(15)(`✅ VALIDATED `)
+      }${seperator}${chalk.bgAnsi256(212).ansi256(15)(
+        ` 🪢  FLOW: ${this.flowId() ?? '<root>'} `
+      )}${seperator}${Object.entries(this.getRawAttrs())
+        .reduce<string[]>(
+          (attrStrings, [name, value]) => [
+            ...attrStrings,
 
-              `${chalk.bgAnsi256(105).ansi256(15)(`🏷️  ${name}: `)}${
-                validatedKwargs !== null &&
-                //@ts-ignore
-                validatedKwargs.hasOwnProperty(name)
-                  ? chalk.bgAnsi256(105).ansi256(15)(
-                      //@ts-ignore
-                      validatedKwargs[name] + ' '
-                    )
-                  : chalk.bgAnsi256(105).ansi256(15)(`<unavailable> `)
-              }${chalk.bgAnsi256(97).ansi256(15)(
-                ` (raw: ${JSON.stringify(value)}) `
-              )}`,
-            ],
-            []
-          )
-          .join('  •  ')}`
-      )
+            `${chalk.bgAnsi256(105).ansi256(15)(`🏷️  ${name}: `)}${
+              validatedKwargs !== null &&
+              //@ts-ignore
+              validatedKwargs.hasOwnProperty(name)
+                ? chalk.bgAnsi256(105).ansi256(15)(
+                    //@ts-ignore
+                    validatedKwargs[name]
+                      .replace('\r', '\\r')
+                      .replace('\n', '\\n') + ' '
+                  )
+                : chalk.bgAnsi256(105).ansi256(15)(`<unavailable> `)
+            }${chalk.bgAnsi256(97).ansi256(15)(
+              ` (raw: ${JSON.stringify(value)}) `
+            )}`,
+          ],
+          []
+        )
+        .join(seperator)}`
     },
   }
 
@@ -312,7 +352,12 @@ export type MultipleAttributeMessageFactory<
  * in TypeScript. By using this pattern, we utilise the currying workaround which ensures the user does not have to
  * define inferrable type args manually.
  */
-export default {
+export const createMessageTypeBuilder = <
+  const BMap extends MessageFactoryMap
+>() => ({
+  getMap: () => {
+    return 'lol' as unknown as BMap
+  },
   /**
    * Each message processed by the factory has an identifiable message name. Consuming systems will usually need to
    * know which message name the factory will handle.
@@ -333,7 +378,12 @@ export default {
       ) => {
         let schema = getSchema(schemaBuilder.multiAttribute())
 
-        return {
+        const builder = {
+          blockEndsWith: <ReferencedMessageName extends keyof BMap>(
+            referencedMessageName: ReferencedMessageName
+          ) => {
+            return builder
+          },
           /**
            * Construct the factory that can be used to generate a representation of a message as defined by the chain leading up to this point.
            * @param messageTypeOpts The {@link MultiAttributeMessageFactoryBuildOpts} that defines aspects of the construct of the message type.
@@ -367,6 +417,8 @@ export default {
             return messageFactory
           },
         }
+
+        return builder
       },
     }),
     /**
@@ -406,4 +458,9 @@ export default {
       return singleAttrBuilder(z.string())
     },
   }),
-}
+})
+
+export type CreateMessageTypeBuilder<BMap extends MessageFactoryMap> =
+  typeof createMessageTypeBuilder<BMap>
+
+export default createMessageTypeBuilder()

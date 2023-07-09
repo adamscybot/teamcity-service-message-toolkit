@@ -12,9 +12,9 @@ export class MissingMessageTypeInRepository extends CustomError {
     messageName: string
   ) {
     super(
-      `Can't find registered message in repository for message name: '${messageName}'. Available message types include: ${repository
-        .getFactories()
-        .map((factory) => factory.messageName)}.`
+      `Can't find registered message in repository for message name: '${messageName}'. Available message types include: ${Object.values(
+        repository.getFactories()
+      ).map((factory) => factory.messageName)}.`
     )
   }
 }
