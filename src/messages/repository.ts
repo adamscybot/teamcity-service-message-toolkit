@@ -41,23 +41,6 @@ export const messageTypeRepository = <
   ) as MessageTypesMap<MessageTypes>
 
   return {
-    /**
-     * Given a service message name that a message factory registered inside
-     * this repository handles, return that factory.
-     *
-     * @example Const myMessageTypeRepo = messageTypeRepository([
-     * messageTypeBuilder.name('exampleMessage').singleAttribute().build(), ])
-     *
-     * Const factory = myMessageTypeRepo.getFactory('exampleMessage') cosnt
-     * exampleMessage = factory({rawValue: 'test'})
-     *
-     * @param key - The service message name that the desired message factory
-     *   handles.
-     * @returns The factory stored in the repository that handles the passed in
-     *   service message name.
-     * @throws {MissingMessageTypeInRepository} If factory not registered in
-     *   this repository for this name
-     */
     getFactory<MessageType extends keyof MessageTypesMap<MessageTypes>>(
       messageName: MessageType
     ) {

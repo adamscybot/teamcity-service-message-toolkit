@@ -12,7 +12,7 @@ export type BasicMessageLiteral =
 type BasicMessageStreamChunkContainer<TypeName extends string, Payload> = {
   type: TypeName
   payload: Payload
-  flowId: string
+  flowId: string | undefined
   meta: { _input: string; tokens: Token[] }
 }
 
@@ -89,6 +89,7 @@ class BasicMessageTransformer
   implements Transformer<Token, BasicMessageStreamChunk>
 {
   private tokenStack = new ParserTokenBuffer()
+  private _lastFlowIdContext: string | undefined = undefined
   private _currentFlowIdContext: string | undefined = undefined
   private _stagedMessage: Partial<BasicMessageLiteral> = {}
   private _stagedLiteral: string | undefined
@@ -101,7 +102,10 @@ class BasicMessageTransformer
     this.tokenStack.reset()
   }
 
-  enqueue(controller, chunk: Omit<BasicMessageStreamChunk, 'meta' | 'flowId'>) {
+  enqueue(
+    controller: TransformStreamDefaultController<BasicMessageStreamChunk>,
+    chunk: Omit<BasicMessageStreamChunk, 'meta' | 'flowId'>
+  ) {
     controller.enqueue({
       ...chunk,
       flowId: this._currentFlowIdContext,
@@ -109,11 +113,14 @@ class BasicMessageTransformer
         _input: this.tokenStack.inputString(),
         tokens: this.tokenStack.rawBuffer(),
       },
-    })
+    } as BasicMessageStreamChunk)
     this.dropStaged()
   }
 
-  transform(token: Token, controller) {
+  transform(
+    token: Token,
+    controller: TransformStreamDefaultController<BasicMessageStreamChunk>
+  ) {
     const lastToken = this.tokenStack.lookbehind()
     const lastSemanticType = lastToken?.type
     this.tokenStack.push(token)
@@ -204,7 +211,7 @@ class BasicMessageTransformer
     }
   }
 
-  flush(controller) {}
+  flush() {}
 }
 
 export class BasicMessageStream extends TransformStream<

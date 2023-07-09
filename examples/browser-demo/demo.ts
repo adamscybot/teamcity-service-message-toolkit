@@ -10,7 +10,7 @@ const message1 = defaultMessageTypeRepository.getFactory('testSuiteStarted')({
 
 console.log(message1.toServiceMessageString())
 console.log('OK')
-message1.ansiPrint()
+message1.ansi()
 
 const message2 = defaultMessageTypeRepository.getFactory(
   'enableServiceMessages'

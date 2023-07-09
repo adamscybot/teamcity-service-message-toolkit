@@ -1,4 +1,3 @@
-import { factory } from 'typescript'
 import {
   MessageFactory,
   MessageTypeRepository,
@@ -14,8 +13,8 @@ import builder, {
 
 export type SemanticMessageStreamChunk =
   | BasicMessageStreamOutputChunk
-  | SingleAttributeMessage<any, any>
-  | MultiAttributeMessage<any, any>
+  | SingleAttributeMessage<any, any, any>
+  | MultiAttributeMessage<any, any, any, any>
 
 export interface SemanticMessageStreamOpts<
   Repository extends MessageTypeRepository<any>
@@ -30,7 +29,10 @@ class SemanticMessageTransformer<Repository extends MessageTypeRepository<any>>
 {
   constructor(private opts: SemanticMessageStreamOpts<Repository>) {}
 
-  transform(chunk: BasicMessageStreamChunk, controller) {
+  transform(
+    chunk: BasicMessageStreamChunk,
+    controller: TransformStreamDefaultController<SemanticMessageStreamChunk>
+  ) {
     if (chunk.type === 'message') {
       let factory:
         | SingleAttributeMessageFactory<string, any>
@@ -94,7 +96,7 @@ class SemanticMessageTransformer<Repository extends MessageTypeRepository<any>>
     }
   }
 
-  flush(controller) {}
+  flush() {}
 }
 
 export class SemanticMessageStream<

@@ -6,9 +6,11 @@ import { factory } from 'typescript'
  * Error type thrown when the user attempted to retrieve a message type that was
  * not registered in the repostiory.
  */
-export class MissingMessageTypeInRepository extends CustomError {
+export class MissingMessageTypeInRepository<
+  MessageTypes extends Readonly<Array<MessageFactory>>
+> extends CustomError {
   public constructor(
-    repository: MessageTypeRepository<Readonly<Array<MessageFactory>>>,
+    repository: MessageTypeRepository<MessageTypes>,
     messageName: string
   ) {
     super(

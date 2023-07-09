@@ -12,7 +12,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "build:vitest:clean": "del-cli *.tgz",
+    "build:docs": "typedoc",
     "test": "vitest",
     "dev:browser-demo": "vite --config ./examples/browser-demo/vite.config.ts"
   },
@@ -43,7 +43,6 @@
     "del-cli": "^5.0.0",
     "prettier": "^2.8.8",
     "prettier-plugin-jsdoc": "^0.4.2",
-    "typedoc": "^0.24.8",
     "vite": "^4.3.9",
     "vite-plugin-checker": "^0.6.1",
     "vitest": "^0.33.0"

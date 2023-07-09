@@ -1,9 +1,8 @@
-import { ESCAPE_MAPPINGS, escape, unescape } from '../lib/escape.js'
+import { escape } from '../lib/escape.js'
 import {
   InvalidServiceMessageFormat,
   InvalidServiceMessageFormatReasons,
 } from '../lib/errors.js'
-import { MessageTypeRepository } from '../messages/types.js'
 
 const TC_IDENT = '##teamcity'
 
@@ -55,6 +54,7 @@ export const desconstructMessageString = (line: string): TcLogLine | null => {
         if (val[0] !== "'" || val[val.length - 1] !== "'") {
           throw new InvalidServiceMessageFormat(
             line,
+            // @ts-ignore
             `Value for ${name} must be wrapped in single quotes.`
           )
         }
@@ -65,6 +65,7 @@ export const desconstructMessageString = (line: string): TcLogLine | null => {
         if (name[0] !== "'" || name[name.length - 1] !== "'") {
           throw new InvalidServiceMessageFormat(
             line,
+            // @ts-ignore
             `Single attribute value must be wrapped in single quotes.`
           )
         }

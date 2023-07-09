@@ -245,6 +245,27 @@ export interface MessageTypeRepository<
   MessageTypes extends Readonly<Array<MessageFactory>>
 > {
   getFactories(): MessageTypes
+  /**
+   * Given a service message name that a message factory registered inside
+   * this repository handles, return that factory.
+   *
+   * @example
+   *
+   * ```ts
+   * const myMessageTypeRepo = messageTypeRepository([
+   * messageTypeBuilder.name('exampleMessage').singleAttribute().build(), ])
+   *
+   * const factory = myMessageTypeRepo.getFactory('exampleMessage') cosnt
+   * exampleMessage = factory({rawValue: 'test'})
+   * ```
+   *
+   * @param key - The service message name that the desired message factory
+   *   handles.
+   * @returns The factory stored in the repository that handles the passed
+   *   in service message name.
+   * @throws {MissingMessageTypeInRepository} If factory not registered in
+   *   this repository for this name
+   */
   getFactory<MessageType extends keyof MessageTypesMap<MessageTypes>>(
     key: MessageType
   ): MessageTypesMap<MessageTypes>[MessageType]

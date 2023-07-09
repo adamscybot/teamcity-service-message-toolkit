@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { test as originalTest } from 'vitest'
 import {
   aMultiAttrMessageBuilder,

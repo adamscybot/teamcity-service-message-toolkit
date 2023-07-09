@@ -227,7 +227,7 @@ const TOKEN_RULE_BUILDERS = {
       createLiteralTokenValue(
         original,
         SINGLE_CHAR_ESCAPE_MAPPINGS[original[1]] ?? original[1]
-      ),
+      ) as unknown as string,
 
     ...opts,
   }),
@@ -242,7 +242,7 @@ const TOKEN_RULE_BUILDERS = {
       createLiteralTokenValue(
         original,
         String.fromCharCode(parseInt(original.slice(3), 16))
-      ),
+      ) as unknown as string,
 
     lineBreaks: false,
     ...opts,
