@@ -1,6 +1,9 @@
 import { ZodObject, ZodSchema, z } from 'zod'
 
-/** Used to ensure that a provided schema is of an object shape (to accept multiple attributes). */
+/**
+ * Used to ensure that a provided schema is of an object shape (to accept
+ * multiple attributes).
+ */
 export type InferMultiAttributeMessageSchema<Schema extends ZodSchema> =
   Schema extends ZodSchema
     ? z.infer<Schema> extends Record<string, any>
@@ -22,50 +25,71 @@ export type ValidatedAttrTypeForKey<
   Key extends StrictKeysOfMultiAttrSchema<Schema>
 > = Zod.infer<Schema>[Key]
 
+export type MatchingAttrsInSchema<
+  SchemaOne extends ZodSchema,
+  SchemaTwo extends ZodSchema
+> = StrictKeysOfMultiAttrSchema<SchemaOne> &
+  StrictKeysOfMultiAttrSchema<SchemaTwo>
+
 const schemaBuilder = {
   /**
-   * Allows Zod schemas to be built that represent multi attribute messages. The full power of Zod can be used to represent complex
-   * relationships by composing schemas output by this builder at a higher level. Schemas can also use Zod transforms to allow
-   * values to be converted to more abstract representations.
+   * Allows Zod schemas to be built that represent multi attribute messages. The
+   * full power of Zod can be used to represent complex relationships by
+   * composing schemas output by this builder at a higher level. Schemas can
+   * also use Zod transforms to allow values to be converted to more abstract
+   * representations.
    *
-   * @returns A set of utilities that allows for easy building of a Zod schema that represents a multi attribute message.
+   * @example Define a schema with a required string attribute called `name` and
+   * a required string attribute called `id`.
    *
-   * @example
-   * Define a schema with a required string attribute called `name` and a required string attribute called `id`.
-   * ```
-   * schemaBuilder.multiAttribute().attribute('name').attribute('id').build()
-   * ```
-   *
-   * @example
-   * Define a schema with an optional string attribute called `description`.
-   * ```
-   * schemaBuilder.multiAttribute().attribute('description', (attr) => attr.optional()).build()
-   * ```
-   *
-   * @example
-   * Define a schema with an boolean attribute called `enabled`, which defaults to `false`.
-   * `z` can be imported from `zod`.
-   * ```
-   * schemaBuilder.multiAttribute().attribute('enabled', () => z.coerce.boolean().default(false)).build()
+   * ```ts
+   * schemaBuilder
+   *   .multiAttribute()
+   *   .attribute('name')
+   *   .attribute('id')
+   *   .build()
    * ```
    *
-   * @example
-   * Define a schema which accepts a message that can be accept two different sets of attributes.
-   * `z` can be imported from `zod`.
+   * @example Define a schema with an optional string attribute called
+   * `description`.
+   *
+   * ```ts
+   * schemaBuilder
+   *   .multiAttribute()
+   *   .attribute('description', (attr) => attr.optional())
+   *   .build()
    * ```
+   *
+   * @example Define a schema with an boolean attribute called `enabled`, which
+   * defaults to `false`. `z` can be imported from `zod`.
+   *
+   * ```ts
+   * schemaBuilder
+   *   .multiAttribute()
+   *   .attribute('enabled', () => z.coerce.boolean().default(false))
+   *   .build()
+   * ```
+   *
+   * @example Define a schema which accepts a message that can be accept two
+   * different sets of attributes. `z` can be imported from `zod`.
+   *
+   * ```ts
    * z.union([
    *   schemaBuilder
    *     .multiAttribute()
-   *     .attribute("type", () => z.literal("one"))
-   *     .attribute("uniqueToTypeOne")
+   *     .attribute('type', () => z.literal('one'))
+   *     .attribute('uniqueToTypeOne')
    *     .build(),
    *   schemaBuilder
    *     .multiAttribute()
-   *     .attribute("type", () => z.literal("two"))
-   *     .attribute("uniqueToTypeTwo")
+   *     .attribute('type', () => z.literal('two'))
+   *     .attribute('uniqueToTypeTwo')
    *     .build(),
-   * ]);
+   * ])
    * ```
+   *
+   * @returns A set of utilities that allows for easy building of a Zod schema
+   *   that represents a multi attribute message.
    */
   multiAttribute() {
     const multiBuilder = <
@@ -77,12 +101,14 @@ const schemaBuilder = {
         /**
          * Define an attribute that this message accepts.
          *
-         * @param attributeName The string which represents the name of the attribute
-         * @param getAttrSchema An optional function that returns a zod schema for this attribute.
-         *                      By default a schema representing a required string is provided as
-         *                      the first paramater. Allows for full use of Zod functionality such
-         *                      as transforms.
-         * @returns The builder, to build more attributes. See `build` to get the zod schema.
+         * @param attributeName The string which represents the name of the
+         *   attribute
+         * @param getAttrSchema An optional function that returns a zod schema
+         *   for this attribute. By default a schema representing a required
+         *   string is provided as the first paramater. Allows for full use of
+         *   Zod functionality such as transforms.
+         * @returns The builder, to build more attributes. See `build` to get
+         *   the zod schema.
          * @see schemaBuilder.multiAttribute
          */
         attribute<
@@ -91,7 +117,10 @@ const schemaBuilder = {
         >(
           attributeName: AttributeName,
           getAttrSchema?: (
-            /** The default schema representing a required string to build on if desirable.*/
+            /**
+             * The default schema representing a required string to build on if
+             * desirable.
+             */
             defaultAttrSchema: z.ZodString
           ) => AttrSchema
         ) {
@@ -108,9 +137,11 @@ const schemaBuilder = {
           ])
         },
         /**
-         * Get the combined zod schema for everything defined up to this point in the builder chain.
+         * Get the combined zod schema for everything defined up to this point
+         * in the builder chain.
          *
-         * @returns The Zod schema representing all the chained calls to `attribute`.
+         * @returns The Zod schema representing all the chained calls to
+         *   `attribute`.
          * @see schemaBuilder.multiAttribute
          */
         build() {
@@ -118,7 +149,7 @@ const schemaBuilder = {
         },
       } as const)
 
-    return multiBuilder([z.object({})])
+    return multiBuilder([z.object({ flowId: z.string().optional() })])
   },
   singleAttribute() {
     const singleBuilder = () => ({

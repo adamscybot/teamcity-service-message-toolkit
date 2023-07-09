@@ -3,8 +3,8 @@ import { MessageFactory, MessageTypeRepository } from '../messages/types.js'
 import { factory } from 'typescript'
 
 /**
- * Error type thrown when the user attempted to retrieve a message type that was not
- * registered in the repostiory.
+ * Error type thrown when the user attempted to retrieve a message type that was
+ * not registered in the repostiory.
  */
 export class MissingMessageTypeInRepository extends CustomError {
   public constructor(
@@ -15,6 +15,20 @@ export class MissingMessageTypeInRepository extends CustomError {
       `Can't find registered message in repository for message name: '${messageName}'. Available message types include: ${Object.values(
         repository.getFactories()
       ).map((factory) => factory.messageName)}.`
+    )
+  }
+}
+
+/**
+ * Error type thrown when the user attempted to reference a message type that
+ * has not yet been registered.
+ */
+export class InvalidMesageTypeRef extends CustomError {
+  public constructor(factories: Readonly<Array<MessageFactory>>, ref: string) {
+    super(
+      `Can't resolve reference \`${ref}\` to a message factory as the reference could not be found. Did you ensure the ref was used after the referenced message type was declared? Available message types at this point in the execution include: ${factories.map(
+        (factory) => factory.messageName
+      )}.`
     )
   }
 }
@@ -36,9 +50,7 @@ const INVALID_SERVICE_MESSAGE_FORMAT_MESSAGES: Record<
   VALUE_REQUIRES_QUOTES: 'All values must be wrapped in single quotes.',
 }
 
-/**
- * Error type thrown when
- */
+/** Error type thrown when */
 export class InvalidServiceMessageFormat extends CustomError {
   public readonly reason: InvalidServiceMessageFormatReasons
   public readonly line: string

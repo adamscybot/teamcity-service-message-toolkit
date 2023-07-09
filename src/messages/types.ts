@@ -3,47 +3,93 @@ import {
   KeysOfMultiAttrSchema,
   StrictKeysOfMultiAttrSchema,
   ValidatedAttrTypeForKey,
+  MatchingAttrsInSchema,
 } from './schema.js'
-import {
-  CreateMessageTypeBuilder,
+import type {
+  MessageTypeBuilder,
   MultipleAttributeMessageFactory,
   SingleAttributeMessageFactory,
+  MessageTypeBuilderMultiEndsWithOpts,
+  MessageTypeBuilderSingleEndsWithOpts,
 } from './builder.js'
 import { defaultMessageTypeRepository } from './repository.js'
 
 export interface Message<MessageName extends string> {
-  /**
-   * @see MessageOpts.flowId
-   */
+  /** @see MessageOpts.flowId */
   flowId(): string | undefined
-  /**
-   * @see MessageTypeOpts.messageName
-   */
+  /** @see MessageTypeOpts.messageName */
   messageName(): MessageName
 
-  /**
-   * @returns A TC service message string that represents this message object
-   */
+  /** @returns A TC service message string that represents this message object */
   toServiceMessageString(): string
 }
 
 interface ValidateableMessage {
   /**
-   * Perform validation on the message according to the validation function configured on the message type.
+   * Perform validation on the message according to the validation function
+   * configured on the message type.
    *
-   * @throws A {@link ZodError}
    * @returns The same message object that was validated.
+   * @throws A {@link ZodError}
    * @see SingleAttributeMessageTypeOpts.validate for where the validate logic is defined for a single attribute message.
    * @see MultiAttributeMessageTypeOpts.validate for where the validate logic is defined for a multi attribute message.
    */
   validate(): this
 }
 
+/**
+ * Contextual messages are messages which begin a block context. I.e, they are
+ * eventually proceeded by a sister message which closes the block context.
+ *
+ * These methods are always provided regardless of if the context was configured
+ * on the method, since this helps make consuming code that needs to parse logs
+ * easier to write.
+ */
+export interface ContextualMessage<
+  BlockContextCloseFactory extends MessageFactory | undefined
+> {
+  /**
+   * @returns `boolean` that is true if this message type is one that can
+   *   trigger a new context, and so has a sister ending message type.
+   */
+  isContextBlock(): boolean
+
+  /**
+   * @returns If this message type is one which starts a block, the
+   *   {@link MessageFactory} that can create the sister end message is returned.
+   *   If it is not a block-starting message, it will return `undefined`.
+   */
+  getEndContextBlockFactory(): BlockContextCloseFactory
+
+  /**
+   * Checks if a given message is the matching end message of this one. The
+   * behaviour of this will differ depending on if this is a single or multi
+   * attribute message, and depending on the configured context options when the
+   * message was created.
+   *
+   * @param message The message that you wish to check.
+   * @returns `boolean` that is true if the passed message is the matching end
+   *   message, otherwise false. Will also return false if no close factory was
+   *   provided in the message options.
+   * @see {@link MessageTypeBuilderMultiEndsWithOpts} for details on matching logic for multi attr messages
+   * @see {@link MessageTypeBuilderSingleEndsWithOpts} for details on matching logic for single attr messages
+   */
+  isEndContextBlockMessage(
+    message:
+      | MultiAttributeMessage<any, any, any, any>
+      | SingleAttributeMessage<any, any, any>
+  ): boolean
+}
+
 export interface SingleAttributeMessage<
   MessageName extends string,
-  Schema extends ZodSchema
+  Schema extends ZodSchema,
+  BlockContextCloseFactory extends MessageFactory | undefined
 > extends Message<MessageName>,
-    ValidateableMessage {
+    ValidateableMessage,
+    ContextualMessage<BlockContextCloseFactory> {
+  /** Message type identifier */
+  syntaxType(): 'singleAttr'
   /**
    * Get the underlying string that represents the value.
    *
@@ -67,9 +113,9 @@ export interface SingleAttributeMessage<
   //  */
   // setValue(value: ValueType): this
   /**
-   * Gets the representational value of this message in the form of the type it is represented as.
-   * Usually, this  is the same as the underlying raw value (a string), unless the message type
-   * dictates a different type.
+   * Gets the representational value of this message in the form of the type it
+   * is represented as. Usually, this is the same as the underlying raw value (a
+   * string), unless the message type dictates a different type.
    *
    * @param value The representational value.
    */
@@ -78,22 +124,45 @@ export interface SingleAttributeMessage<
   ansi(): string
 }
 
+export type ValidBlockContextKeys<
+  Schema extends ZodSchema,
+  BlockContextCloseFactory extends MessageFactory | undefined
+> =
+  | undefined
+  | (BlockContextCloseFactory extends MessageFactory
+      ? Array<
+          MatchingAttrsInSchema<
+            Schema,
+            ExtractSchemaFromMessageFactory<BlockContextCloseFactory>
+          >
+        >
+      : never)
+
 export interface MultiAttributeMessage<
   MessageName extends string,
-  Schema extends Readonly<ZodSchema>
+  Schema extends Readonly<ZodSchema>,
+  BlockContextCloseFactory extends MessageFactory | undefined,
+  BlockContextKey extends
+    | ValidBlockContextKeys<Schema, BlockContextCloseFactory>
+    | undefined
 > extends Message<MessageName>,
-    ValidateableMessage {
+    ValidateableMessage,
+    ContextualMessage<BlockContextCloseFactory> {
+  /** Message type identifier */
+  syntaxType(): 'multiAttr'
   /**
    * Get the underlying string that represents the value.
    *
    * @param key The key of the attribute to get.
-   * @returns The underlying raw string value for this attribute, or undefined if it was not set.
+   * @returns The underlying raw string value for this attribute, or undefined
+   *   if it was not set.
    */
   getRawAttr(key: KeysOfMultiAttrSchema<Schema>): string | undefined
   /**
    * Get the string representation of all the attributes on the message
    *
-   * @returns An object that maps the attribute name to its underlying string value
+   * @returns An object that maps the attribute name to its underlying string
+   *   value
    */
 
   getRawAttrs(): Record<string, string>
@@ -101,14 +170,16 @@ export interface MultiAttributeMessage<
    * Set the underlying string that represents the value.
    *
    * @param key The key of the attribute to set.
-   * @param rawValue The underlying raw string value for this attribute, or undefined if it was not set.
+   * @param rawValue The underlying raw string value for this attribute, or
+   *   undefined if it was not set.
    * @returns The message object.
    */
   setRawAttr(key: KeysOfMultiAttrSchema<Schema>, rawValue: string): this
   /**
-   * Gets the representational value of this message in the form of the type it is represented as in the schema.
-   * Usually, this  is the same as the underlying raw value (a string), unless the message type
-   * dictates a different type.
+   * Gets the representational value of this message in the form of the type it
+   * is represented as in the schema. Usually, this is the same as the
+   * underlying raw value (a string), unless the message type dictates a
+   * different type.
    *
    * @param key The key of the attribute to get.
    * @returns The representational value for this attribute.
@@ -118,11 +189,13 @@ export interface MultiAttributeMessage<
   ): ValidatedAttrTypeForKey<Schema, Key>
 
   /**
-   * Gets the representational values of this message whereby each key is the type it is represented as in the schema.
-   * Usually, this  is the same as the underlying raw value (a string), unless the message type
-   * dictates a different type.
+   * Gets the representational values of this message whereby each key is the
+   * type it is represented as in the schema. Usually, this is the same as the
+   * underlying raw value (a string), unless the message type dictates a
+   * different type.
    *
-   * @returns An object of all the attrs on this message after being parsed by the schema.
+   * @returns An object of all the attrs on this message after being parsed by
+   *   the schema.
    */
   getAttrs(): Zod.infer<Schema>
   // /**
@@ -138,12 +211,26 @@ export interface MultiAttributeMessage<
   //   key: Key,
   //   value: AttributeTypes[Key] extends never ? string : AttributeTypes[Key]
   // ): this
+
   ansi(): string
 }
 
 export type MessageFactory =
-  | SingleAttributeMessageFactory<any, any>
-  | MultipleAttributeMessageFactory<any, any>
+  | SingleAttributeMessageFactory<any, any, any>
+  | MultipleAttributeMessageFactory<any, any, any, any>
+
+export type ExtractSchemaFromMessageFactory<Factory extends MessageFactory> =
+  Factory extends MultipleAttributeMessageFactory<
+    infer RefMessageName,
+    infer RefSchema extends ZodSchema
+  >
+    ? RefSchema
+    : Factory extends MultipleAttributeMessageFactory<
+        infer RefMessageName,
+        infer RefSchema extends ZodSchema
+      >
+    ? RefSchema
+    : never
 
 export type MessageTypesMap<
   MessageTypes extends Readonly<Array<MessageFactory>>
@@ -171,18 +258,24 @@ export interface MessageTypeRepository<
   ): ReturnType<MessageFactoryForLogLine<this, Line>>
 }
 
-export type MessageTypeRepositoryBuilder<BMap extends MessageFactoryMap = {}> =
-  {
-    addMessageType<MessageName extends string, Factory extends MessageFactory>(
-      messageFactoryCallback: (
-        messageTypeBuilder: ReturnType<CreateMessageTypeBuilder<BMap>>
-      ) => Factory & { messageName: MessageName }
-    ): MessageTypeRepositoryBuilder<
-      Readonly<BMap & Readonly<{ [K in MessageName]: Factory }>>
-    >
-  }
+export type MessageTypeRepositoryRef<
+  MessageTypes extends Readonly<Array<MessageFactory>>
+> = <MessageRef extends keyof MessageTypesMap<MessageTypes>>(
+  ref: MessageRef
+) => MessageFactory
 
-export type MessageFactoryMap = Readonly<{ [K: string]: MessageFactory }>
+export type MessageTypeRepositoryBuilder<
+  MessageTypes extends Readonly<Array<MessageFactory>>
+> = {
+  defineMessage<Factory extends MessageFactory>(
+    messageFactoryCallback: (
+      builder: MessageTypeBuilder,
+      ref: MessageTypeRepositoryRef<MessageTypes>
+    ) => Factory
+  ): MessageTypeRepositoryBuilder<Readonly<[...MessageTypes, Factory]>>
+
+  build(): MessageTypeRepository<MessageTypes>
+}
 
 type TrimWhitespace<S extends string> = S extends ` ${infer R}`
   ? TrimWhitespace<R>

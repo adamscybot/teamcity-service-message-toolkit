@@ -1,7 +1,7 @@
 // @ts-nocheck
 /**
- * Provides an API that allows you to configure a stream that simulates a test runner that outputs TeamCity
- * formatted log lines.
+ * Provides an API that allows you to configure a stream that simulates a test
+ * runner that outputs TeamCity formatted log lines.
  */
 
 import parseDuration from 'parse-duration'
@@ -29,15 +29,14 @@ abstract class TcStreamable {
   }
 
   /**
-   * Get access to the underlying `ReadableStream`. This can be used to listen to events
-   * or manipulate the stream.
-   *
-   * @param cb A callback which is passed the underlying `ReadableStream`
+   * Get access to the underlying `ReadableStream`. This can be used to listen
+   * to events or manipulate the stream.
    *
    * @example
-   * ```
-   * logger.addSuite((suite) => suite.name('Example suite')).stream((stream) => stream.)
-   * ```
+   *
+   *     logger.addSuite((suite) => suite.name('Example suite')).stream((stream) => stream.)
+   *
+   * @param cb A callback which is passed the underlying `ReadableStream`
    */
   stream(cb: (stream: Readable) => void) {
     cb(this.readableStream)
@@ -160,9 +159,10 @@ export class TcDummyTestIgnored extends TcBaseTest {
   }
 
   /**
-   * TC allows log output for ignored tests to be bookended by start/finish markers or to be standalone.
-   * Setting this to true adds the bookending. Useful for testing different parsing scenarios.
-   **/
+   * TC allows log output for ignored tests to be bookended by start/finish
+   * markers or to be standalone. Setting this to true adds the bookending.
+   * Useful for testing different parsing scenarios.
+   */
   wrap(shouldWrap: boolean = true) {
     this.wrapped = shouldWrap
     return this
@@ -206,7 +206,8 @@ export class TcDummyTestFails extends TcDummyTestRunnable {
   }
 
   /**
-   * Set the details message, usually used for stack traces relating to the error.
+   * Set the details message, usually used for stack traces relating to the
+   * error.
    *
    * @param message The string containing the additional error details
    */
@@ -242,7 +243,7 @@ export class TcDummyTestAccessor {
   /**
    * Define the test as one which will been ignored.
    *
-   * @returns a test configuration object for further customisation.
+   * @returns A test configuration object for further customisation.
    */
   ignored() {
     return new TcDummyTestIgnored(this.stream)
@@ -251,7 +252,7 @@ export class TcDummyTestAccessor {
   /**
    * Define the test as one which will succeed.
    *
-   * @returns a test configuration object for further customisation.
+   * @returns A test configuration object for further customisation.
    */
   succeeds() {
     return new TcDummyTestSucceeds(this.stream)
@@ -260,7 +261,7 @@ export class TcDummyTestAccessor {
   /**
    * Define the test as one which will fail.
    *
-   * @returns a test configuration object for further customisation.
+   * @returns A test configuration object for further customisation.
    */
   fails() {
     return new TcDummyTestFails(this.stream)
@@ -289,12 +290,11 @@ export class TcDummySuite extends TcContainsRawText {
   /**
    * Set the name of this suite.
    *
-   * @param name The new name of the suite which will be shown in the log output
-   *
    * @example
-   * ```
-   * logger.addSuite((suite) => suite.name('Example suite'))
-   * ```
+   *
+   *     logger.addSuite((suite) => suite.name('Example suite'))
+   *
+   * @param name The new name of the suite which will be shown in the log output
    */
   name(name?: string) {
     if (!name) return this.nameString
@@ -305,13 +305,15 @@ export class TcDummySuite extends TcContainsRawText {
   /**
    * Add a an individual test to this suite and allow it to be configured.
    *
-   * @param cb A callback that is passed the new test for further configuration
-   *
    * @example
-   * ```
-   * logger.addSuite((suite) => suite.name('Example suite')
-   *   .addTest(test => test.success().name('Example Test')))
-   * ```
+   *
+   *     logger.addSuite((suite) =>
+   *       suite
+   *         .name('Example suite')
+   *         .addTest((test) => test.success().name('Example Test'))
+   *     )
+   *
+   * @param cb A callback that is passed the new test for further configuration
    */
   addTest(
     cb: (
@@ -332,16 +334,18 @@ export class TcDummySuite extends TcContainsRawText {
   /**
    * Add a delay between the output of each test
    *
-   * @param duration A duration in string form compatible with the `parse-duration` duration library. E.g. 10s
-   *
    * @example
    *
-   * ```
-   * logger.addSuite((suite) => suite.name('Example suite')
-   *   .addTest(test => test.success().name('Example Test'))
-   *   .delay('10s')
-   *   .addTest(test => test.success().name('Delayed Test')))
-   * ```
+   *     logger.addSuite((suite) =>
+   *       suite
+   *         .name('Example suite')
+   *         .addTest((test) => test.success().name('Example Test'))
+   *         .delay('10s')
+   *         .addTest((test) => test.success().name('Delayed Test'))
+   *     )
+   *
+   * @param duration A duration in string form compatible with the
+   *   `parse-duration` duration library. E.g. 10s
    */
   delay(duration: string) {
     this.tasks.push(new TcDelay(this.readableStream, duration))
@@ -374,13 +378,11 @@ export class TcDummyTestLogger extends TcStreamable {
   /**
    * Add a test suite and allow it to be configured.
    *
-   * @param cb A callback that is passed the new suite for further configuration
-   *
    * @example
    *
-   * ```
-   * logger.addSuite((suite) => suite.name('Example suite'))
-   * ```
+   *     logger.addSuite((suite) => suite.name('Example suite'))
+   *
+   * @param cb A callback that is passed the new suite for further configuration
    */
   addSuite(cb: (suite: TcDummySuite) => TcDummySuite) {
     const newSuite = cb(
@@ -429,7 +431,8 @@ export class TcDummyTestLogger extends TcStreamable {
   /**
    * Start outputting the configured logging to the stream.
    *
-   * @returns {Promise} a promise that resolves once all of the requested log output is outputted to the stream.
+   * @returns {Promise} A promise that resolves once all of the requested log
+   *   output is outputted to the stream.
    */
   async exec() {
     for (const suite of this.suites) {
@@ -439,16 +442,13 @@ export class TcDummyTestLogger extends TcStreamable {
   }
 
   /**
-   * Configure the stream to pipe into another stream. This is provided as a utility wrapper around
-   * `logger.stream(stream => stream.pipe()`
+   * Configure the stream to pipe into another stream. This is provided as a
+   * utility wrapper around `logger.stream(stream => stream.pipe()`
    *
-   * @example
-   * Output all the logs to stdout
+   * @example Output all the logs to stdout
    *
-   * ```
-   * logger.pipe(process.stdout)
-   * ```
-   **/
+   *     logger.pipe(process.stdout)
+   */
   pipe(...args: Parameters<typeof this.readableStream.pipe>) {
     this.readableStream.pipe(...args)
     return this

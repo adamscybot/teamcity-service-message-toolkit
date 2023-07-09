@@ -31,17 +31,29 @@ export type Token =
 export enum TokenTypes {
   /** A token representing the starting service message identifier */
   SERVICE_MESSAGE_IDENT = 'serviceMessageIdent',
-  /** A token representing any string that is considered outside of the service message */
+  /**
+   * A token representing any string that is considered outside of the service
+   * message
+   */
   NON_SERVICE_MESSAGE_OUTPUT = 'nonServiceMessageOutput',
-  /** A token representing that the parameters block for the mssage has been opened */
+  /**
+   * A token representing that the parameters block for the mssage has been
+   * opened
+   */
   PARAMETERS_OPEN = 'parametersOpen',
-  /** A token representing that the parameters block for the mssage has been closed */
+  /**
+   * A token representing that the parameters block for the mssage has been
+   * closed
+   */
   PARAMETERS_CLOSE = 'parametersClose',
   /** A token representing the message name for the service message */
   MESSAGE_NAME = 'messageName',
   /** A token representing allowable space, that is used in appropriate places */
   SPACE = 'space',
-  /** A token representing the operator for assigning a attribute to a value in a multi attribute message */
+  /**
+   * A token representing the operator for assigning a attribute to a value in a
+   * multi attribute message
+   */
   PROPERTY_ASSIGN_OPERATOR = 'propertyAssignOperator',
   /** A token representing the name of an attribute in a multi attribute message */
   PROPERTY_NAME = 'propertyName',
@@ -55,9 +67,15 @@ export enum TokenTypes {
   STRING_ESCAPE_SINGLE_CHAR = 'stringEscapeSingleChar',
   /** A token representing an escape sequence for a unicode identifier */
   STRING_ESCAPE_UNICODE = 'stringEscapeUnicode',
-  /** A token representing that a new line was detected. Used for valid new lines only (new lines inside service message are not allowed) */
+  /**
+   * A token representing that a new line was detected. Used for valid new lines
+   * only (new lines inside service message are not allowed)
+   */
   LINE_TERMINATION = 'lineTermination',
-  /** A token representing an error. Value will be the remaining input text after error was encountered. */
+  /**
+   * A token representing an error. Value will be the remaining input text after
+   * error was encountered.
+   */
   ERROR = 'error',
 }
 
@@ -76,27 +94,31 @@ export enum TokeniserStates {
 }
 
 /**
- * A function which builds a {@link Rule}. It will usually have a base internal implementation and will
- * compose the provided overrides.
+ * A function which builds a {@link Rule}. It will usually have a base internal
+ * implementation and will compose the provided overrides.
  *
- * @argument opts The context from the caller, usually a partial {@link Rule} that represents
- *                specific variations needed by the caller. This normally overrides the base impl.
- *
- * @returns the composed {@link Rule} that would be used in the original implementation for this token.
- **/
+ * @param opts The context from the caller, usually a partial {@link Rule} that
+ *   represents specific variations needed by the caller. This normally
+ *   overrides the base impl.
+ * @returns The composed {@link Rule} that would be used in the original
+ *   implementation for this token.
+ */
 export type RuleBuilderFn = (opts?: Rule) => Rule
 
 export type TokeniserRuleOverrideFn = (
   /**
-   * The original implementation of the function to fetch the rules for the relevant token.
+   * The original implementation of the function to fetch the rules for the
+   * relevant token.
    *
-   * @argument baseImpl The context from the caller, usually a partial {@link Rule} that represents
-   *                specific variations needed by the caller.
-   * @argument stage The {@link TokeniserStates} from which this rule builder was called.
-   * @argument opts The context from the caller, usually a partial {@link Rule} that represents
-   *                specific variations needed by the caller. This normally overrides the base impl.
-   *
-   * @returns the composed {@link Rule} that will be used for this token in place of the original implementation.
+   * @param baseImpl The context from the caller, usually a partial {@link Rule}
+   *   that represents specific variations needed by the caller.
+   * @param stage The {@link TokeniserStates} from which this rule builder was
+   *   called.
+   * @param opts The context from the caller, usually a partial {@link Rule} that
+   *   represents specific variations needed by the caller. This normally
+   *   overrides the base impl.
+   * @returns The composed {@link Rule} that will be used for this token in place
+   *   of the original implementation.
    */
   baseImpl: RuleBuilderFn,
   stage: TokeniserStates,
@@ -119,11 +141,12 @@ export type TokenRuleBuilderOpts<
 } & AdditionalOpts
 
 /**
- * A function which defines how to build the rules for different tokens specific to this
- * library.
+ * A function which defines how to build the rules for different tokens specific
+ * to this library.
  *
- * @argument opts The {@link TokenRuleBuilderOpts} that represent the configuration for this rule.
- * @returns the composed {@link Rule}.
+ * @param opts The {@link TokenRuleBuilderOpts} that represent the configuration
+ *   for this rule.
+ * @returns The composed {@link Rule}.
  */
 export type TokenRuleBuilder<AdditionalOpts extends Record<string, any> = {}> =
   (opts: TokenRuleBuilderOpts<AdditionalOpts>) => Rule
@@ -300,65 +323,75 @@ const TOKEN_RULE_BUILDERS = {
 type TokenRuleBuilders = typeof TOKEN_RULE_BUILDERS
 
 /**
- * The defaults are configured to match the specification. These options largely exist
- * for scenarios where it may be necessary to parse "dirty" input.
- * */
+ * The defaults are configured to match the specification. These options largely
+ * exist for scenarios where it may be necessary to parse "dirty" input.
+ */
 export interface TokeniserOpts {
   /**
    * Allow a service message to spread across multiple lines.
    *
-   * @default false
-   **/
+   * @defaultValue `false`
+   */
   allowNewLines?: boolean
   /**
    * Change the default ident that is used to denote a service message.
    *
-   * @default "###teamcity"
-   **/
+   * @defaultValue `'###teamcity'`
+   */
   ident?: string
 
   /**
-   * Enable or disable escaping of string literals according to the specification.
+   * Enable or disable escaping of string literals according to the
+   * specification.
    *
-   * @default true
+   * @defaultValue `true``
    */
   escapeLiterals?: boolean
 
-  /**
-   *
-   */
   unsafeLooseParameters?: boolean
 
   /**
-   * These options are unsupported and to be used at your own risk. It provides an escape hatch that allows for
-   * selective replacement of the rules for each base token.
+   * These options are unsupported and to be used at your own risk. It provides
+   * an escape hatch that allows for selective replacement of the rules for each
+   * base token.
    *
-   * Should be set to an object literal that maps each {@link TokenType} of the respective token builder that you desire to override to
-   * a function that takes two arguments. The first argument is the original implementation for this token builder,
-   * which you may optionally call. The second is the options for this instantiation of the token builder.
+   * Should be set to an object literal that maps each {@link TokenType} of the
+   * respective token builder that you desire to override to a function that
+   * takes two arguments. The first argument is the original implementation for
+   * this token builder, which you may optionally call. The second is the
+   * options for this instantiation of the token builder.
    *
-   * Note, depending on what is done, all other options to the tokeniser may be made irrelevant.
+   * Note, depending on what is done, all other options to the tokeniser may be
+   * made irrelevant.
    *
    * The syntax of the rules is provided by the Moo library.
    *
    * @example Use double quotes rather than single quotes for literals.
    *
-   * ```
+   * ```ts
    * tokeniser({
-   *     overrideTokenDefs: {
-   *         stringStart: (baseImpl, opts) => ({ ...baseImpl(opts), match: '"' })
-   *     }
+   *   overrideTokenDefs: {
+   *     stringStart: (baseImpl, opts) => ({
+   *       ...baseImpl(op ts),
+   *       match: '"',
+   *     }),
+   *   },
    * })
-   * ```
+   * b
+   *
    * @see https://github.com/no-context/moo
    * @see {@link TokenRuleBuilderOpts}
    * @see {@link TOKEN_RULE_BUILDERS} The original implementations
+   * ```
    */
   overrideTokenDefs?: {
     [K in keyof TokenRuleBuilders]?: (
       /** The original implementation for this token builder */
       baseImpl: (opts: Parameters<TokenRuleBuilders[K]>[0]) => Rule,
-      /** The options for this instantiation of the token builder, derived from {@link TokenRuleBuilderOpts} */
+      /**
+       * The options for this instantiation of the token builder, derived from
+       * {@link TokenRuleBuilderOpts}
+       */
       opts: Parameters<TokenRuleBuilders[K]>[0]
     ) => TokenRuleBuilders[K]
   }

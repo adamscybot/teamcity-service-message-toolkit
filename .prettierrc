@@ -1,4 +1,7 @@
 {
+  "plugins": ["prettier-plugin-jsdoc"],
   "semi": false,
-  "singleQuote": true
+  "singleQuote": true,
+  "tsdoc": true,
+  "jsdocPrintWidth": 80
 }
