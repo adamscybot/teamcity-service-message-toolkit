@@ -108,13 +108,23 @@ const createRepositoryBuilder = <
 >(
   messageTypes: MessageTypes
 ) => {
-  const ref: MessageTypeRepositoryRef<MessageTypes> = (ref) => {
+  const ref: MessageTypeRepositoryRef<MessageTypes> = <
+    MessageName extends keyof MessageTypesMap<MessageTypes>
+  >(
+    ref: MessageName
+  ) => {
     const referencedBuilder = messageTypes.find(
-      (builder) => builder.messageName === 'ref'
+      (builder) => builder.messageName === ref
     )
     if (!referencedBuilder) throw new InvalidMesageTypeRef(messageTypes, ref)
-    return referencedBuilder
+    return referencedBuilder as Extract<
+      MessageTypes[number],
+      {
+        messageName: MessageName
+      }
+    >
   }
+
   const repositoryBuilder: MessageTypeRepositoryBuilder<MessageTypes> = {
     defineMessage<const Factory extends MessageFactory>(
       messageFactoryCallback: (
@@ -145,7 +155,7 @@ const createRepositoryBuilder = <
  * By using the builder, you get strongly typed references when adding a message
  * with a defined message that ends its block context.
  *
- * @example
+ * @example Simple message registration
  *
  * ```ts
  * repositoryBuilder
@@ -157,14 +167,27 @@ const createRepositoryBuilder = <
  *   )
  * ```
  *
+ * @example Link messages together easily
+ *
+ * ```ts
+ * repositoryBuilder
+ *   .defineMessage((builder) =>
+ *     builder.name('endExampleBlock').singleAttribute().build()
+ *   )
+ *   .defineMessage((builder, ref) =>
+ *     builder
+ *       .name('startExampleBlock')
+ *       .singleAttribute()
+ *       .endsWith(ref('endExampleBlock'))
+ *       .build()
+ *   )
+ * ```
+ *
  * @returns {MessageTypeRepository} That contains message types as defined in
  *   the builder chain.
+ * @see {@link messageTypeBuilder} for more examples on the options when building a message.
  */
 const repositoryBuilder = createRepositoryBuilder([])
-
-const ok = repositoryBuilder.defineMessage((builder) =>
-  builder.name('yrdy').singleAttribute().build()
-)
 
 const baseTestSchema = schemaBuilder
   .multiAttribute()
@@ -179,7 +202,7 @@ const baseTestSchema = schemaBuilder
  * @todo Allow configuring strictness of default validation
  */
 export const defaultMessageTypeRepository = repositoryBuilder
-  .defineMessage((builder) =>
+  .defineMessage((builder, ref) =>
     builder.name('buildNumber').singleAttribute().build()
   )
   .defineMessage((builder) =>

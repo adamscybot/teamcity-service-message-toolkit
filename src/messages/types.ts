@@ -59,7 +59,7 @@ export interface ContextualMessage<
    *   {@link MessageFactory} that can create the sister end message is returned.
    *   If it is not a block-starting message, it will return `undefined`.
    */
-  getEndContextBlockFactory(): BlockContextCloseFactory
+  getBlockTerminatorFactory(): BlockContextCloseFactory
 
   /**
    * Checks if a given message is the matching end message of this one. The
@@ -74,7 +74,7 @@ export interface ContextualMessage<
    * @see {@link MessageTypeBuilderMultiEndsWithOpts} for details on matching logic for multi attr messages
    * @see {@link MessageTypeBuilderSingleEndsWithOpts} for details on matching logic for single attr messages
    */
-  isEndContextBlockMessage(
+  isMessageBlockTerminator(
     message:
       | MultiAttributeMessage<any, any, any, any>
       | SingleAttributeMessage<any, any, any>
@@ -260,19 +260,43 @@ export interface MessageTypeRepository<
 
 export type MessageTypeRepositoryRef<
   MessageTypes extends Readonly<Array<MessageFactory>>
-> = <MessageRef extends keyof MessageTypesMap<MessageTypes>>(
-  ref: MessageRef
-) => MessageFactory
+> = <MessageName extends keyof MessageTypesMap<MessageTypes>>(
+  ref: MessageName
+) => Extract<
+  MessageTypes[number],
+  {
+    messageName: MessageName
+  }
+>
+
+export type RepositoryDefineMessageCb<
+  MessageTypes extends Readonly<Array<MessageFactory>>,
+  NewFactory extends MessageFactory
+> = /**
+ * @param builder A {@link messageTypeBuilder} to construct a new message type.
+ * @param ref A function that takes a `messageName` of message type already
+ *   registered in the parent {@link MessageTypeRepositoryBuilder} up to this
+ *   point, and returns the relevant message type for it. This is needed when
+ *   linking messages, for example, the `endsWith` configuration.
+ * @throws A {@link InvalidMesageTypeRef} If factory not registered in this
+ *   repository for this name
+ */ (
+  builder: MessageTypeBuilder,
+  ref: MessageTypeRepositoryRef<MessageTypes>
+) => NewFactory
 
 export type MessageTypeRepositoryBuilder<
   MessageTypes extends Readonly<Array<MessageFactory>>
 > = {
-  defineMessage<Factory extends MessageFactory>(
-    messageFactoryCallback: (
-      builder: MessageTypeBuilder,
-      ref: MessageTypeRepositoryRef<MessageTypes>
-    ) => Factory
-  ): MessageTypeRepositoryBuilder<Readonly<[...MessageTypes, Factory]>>
+  /**
+   * @param messageFactoryCallback A {@link RepositoryDefineMessageCb} that
+   *   provides easy access to the {@link MessageTypeBuilder} and
+   *   {@link MessageTypeRepositoryRef} for linking message types together
+   * @returns Another {@link MessageTypeRepositoryBuilder} for further chaining.
+   */
+  defineMessage<NewFactory extends MessageFactory>(
+    messageFactoryCallback: RepositoryDefineMessageCb<MessageTypes, NewFactory>
+  ): MessageTypeRepositoryBuilder<Readonly<[...MessageTypes, NewFactory]>>
 
   build(): MessageTypeRepository<MessageTypes>
 }

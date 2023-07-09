@@ -188,12 +188,12 @@ export function createSingleAttributeMessage<
       return blockContextOpts?.closeFactory !== undefined
     },
 
-    getEndContextBlockFactory() {
+    getBlockTerminatorFactory() {
       return blockContextOpts?.closeFactory as BlockContextCloseFactory
     },
 
-    isEndContextBlockMessage(targetMessage) {
-      const targetEndFactory = this.getEndContextBlockFactory()
+    isMessageBlockTerminator(targetMessage) {
+      const targetEndFactory = this.getBlockTerminatorFactory()
 
       // This message isn't a block context start message so there is no reason to compare.
       if (!targetEndFactory) return false
@@ -395,12 +395,12 @@ function createMultiAttributeMessage<
       return blockContextOpts?.closeFactory !== undefined
     },
 
-    getEndContextBlockFactory() {
+    getBlockTerminatorFactory() {
       return blockContextOpts?.closeFactory as BlockContextCloseFactory
     },
 
-    isEndContextBlockMessage(targetMessage) {
-      const targetEndFactory = this.getEndContextBlockFactory()
+    isMessageBlockTerminator(targetMessage) {
+      const targetEndFactory = this.getBlockTerminatorFactory()
 
       // This message isn't a block context start message so there is no reason to compare.
       if (!targetEndFactory) return false
