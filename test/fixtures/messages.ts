@@ -1,4 +1,4 @@
-import builder from '../../src/messages/builder.js'
+import builder from '../../src/messages/builder/builder.js'
 
 export const TEST_SINGLE_ATTR_MESSAGE_NAME = 'testSingleAttrMessage'
 

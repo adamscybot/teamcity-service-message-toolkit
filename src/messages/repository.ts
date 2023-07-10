@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import messageTypeBuilder, { MessageTypeBuilder } from './builder.js'
+import messageTypeBuilder, { MessageTypeBuilder } from './builder/builder.js'
 import schemaBuilder from './schema.js'
 import { TC_STATISTICS_KEYS, TC_XML_TYPES } from './constants.js'
 import { desconstructMessageString } from '../parser/string-parse.js'
@@ -22,6 +22,7 @@ import {
  * convenient way to retrieve strongly typed message factories for a given
  * service message name.
  *
+ * @category Message Repository
  * @example Const myMessageTypeRepo = messageTypeRepository([
  * messageTypeBuilder.name('exampleMessage').singleAttribute().build(), ])
  *
@@ -138,6 +139,7 @@ const createRepositoryBuilder = <
  * By using the builder, you get strongly typed references when adding a message
  * with a defined message that ends its block context.
  *
+ * @category Message Repository
  * @example Simple message registration
  *
  * ```ts
@@ -182,6 +184,7 @@ const baseTestSchema = schemaBuilder
  * The default {@link MessageTypeRepository} containing all the base TeamCity
  * service messages.
  *
+ * @category Message Repository
  * @todo Allow configuring strictness of default validation
  */
 export const defaultMessageTypeRepository = repositoryBuilder

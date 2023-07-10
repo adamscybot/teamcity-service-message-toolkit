@@ -31,15 +31,18 @@ devDependencies:
   '@docusaurus/module-type-aliases':
     specifier: 2.4.1
     version: 2.4.1(react-dom@17.0.2)(react@17.0.2)
+  '@docusaurus/types':
+    specifier: ^2.4.1
+    version: 2.4.1(react-dom@17.0.2)(react@17.0.2)
   docusaurus-plugin-typedoc:
-    specifier: ^0.19.2
-    version: 0.19.2(typedoc-plugin-markdown@3.15.3)(typedoc@0.24.8)
+    specifier: 1.0.0-next.13
+    version: 1.0.0-next.13(typedoc-plugin-markdown@4.0.0-next.17)
   typedoc:
     specifier: ^0.24.8
     version: 0.24.8(typescript@5.1.6)
   typedoc-plugin-markdown:
-    specifier: ^3.15.3
-    version: 3.15.3(typedoc@0.24.8)
+    specifier: 4.0.0-next.17
+    version: 4.0.0-next.17(prettier@3.0.0)(typedoc@0.24.8)
 
 packages:
 
@@ -4239,14 +4242,13 @@ packages:
       '@leichtgewicht/ip-codec': 2.0.4
     dev: false
 
-  /docusaurus-plugin-typedoc@0.19.2(typedoc-plugin-markdown@3.15.3)(typedoc@0.24.8):
-    resolution: {integrity: sha512-N4B2MOaXIyu+FloFn6zVbGgSqszeFQE/7ZIgFakpkVg5F0rfysiDGac2PHbPf4o8DWdyyviJOAuhXk6U7Febeg==}
+  /docusaurus-plugin-typedoc@1.0.0-next.13(typedoc-plugin-markdown@4.0.0-next.17):
+    resolution: {integrity: sha512-7yJ1ESmz4SUtvv4TfD2UVkyKNmr+3I934ugGVIXbBYPaYoxtJnM1I2ltl7CC6/7W3dEKCz/l4XEcutBc+q3edg==}
     peerDependencies:
-      typedoc: '>=0.24.0'
-      typedoc-plugin-markdown: '>=3.15.0'
+      typedoc-plugin-markdown: '>=4.0.0-next.14'
     dependencies:
-      typedoc: 0.24.8(typescript@5.1.6)
-      typedoc-plugin-markdown: 3.15.3(typedoc@0.24.8)
+      typedoc-plugin-frontmatter: 0.0.2
+      typedoc-plugin-markdown: 4.0.0-next.17(prettier@3.0.0)(typedoc@0.24.8)
     dev: true
 
   /dom-converter@0.2.0:
@@ -4944,19 +4946,6 @@ packages:
   /handle-thing@2.0.1:
     resolution: {integrity: sha512-9Qn4yBxelxoh2Ow62nP+Ka/kMnOXRi8BXnRaUwezLNhqelnN49xKz4F/dPP8OYLxLxq6JDtZb2i9XznUQbNPTg==}
     dev: false
-
-  /handlebars@4.7.7:
-    resolution: {integrity: sha512-aAcXm5OAfE/8IXkcZvCepKU3VzW1/39Fb5ZuqMtgI/hT8X2YgoMvBY5dLhq/cpOvw7Lk1nK/UF71aLG/ZnVYRA==}
-    engines: {node: '>=0.4.7'}
-    hasBin: true
-    dependencies:
-      minimist: 1.2.8
-      neo-async: 2.6.2
-      source-map: 0.6.1
-      wordwrap: 1.0.0
-    optionalDependencies:
-      uglify-js: 3.17.4
-    dev: true
 
   /has-flag@3.0.0:
     resolution: {integrity: sha512-sKJf1+ceQBr4SMkvQnBDNDtf4TXpVhVGateu0t918bl30FnbE2m4vNLX+VWe/dpjlb+HugGYzW7uQXH98HPEYw==}
@@ -5917,6 +5906,7 @@ packages:
 
   /minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
+    dev: false
 
   /mrmime@1.0.1:
     resolution: {integrity: sha512-hzzEagAgDyoU1Q6yg5uI+AorQgdvMCur3FcKf7NhMKWsaYg+RnbTyHRa/9IlLF9rf455MOCtcqqrQQ83pPP7Uw==}
@@ -6712,6 +6702,12 @@ packages:
     resolution: {integrity: sha512-ravE6m9Atw9Z/jjttRUZ+clIXogdghyZAuWJ3qEzjT+jI/dL1ifAqhZeC5VHzQp1MSt1+jxKkFNemj/iO7tVUA==}
     engines: {node: '>=4'}
     dev: false
+
+  /prettier@3.0.0:
+    resolution: {integrity: sha512-zBf5eHpwHOGPC47h0zrPyNn+eAEIdEzfywMoYn2XPi0P44Zp0tSq64rq0xAREh4auw2cJZHo9QUob+NqCQky4g==}
+    engines: {node: '>=14'}
+    hasBin: true
+    dev: true
 
   /pretty-error@4.0.0:
     resolution: {integrity: sha512-AoJ5YMAcXKYxKhuJGdcvse+Voc6v1RgnsR3nWcYU7q4t6z0Q6T86sv5Zq8VIRbOWWFpvdGE83LtdSMNd+6Y0xw==}
@@ -7917,12 +7913,19 @@ packages:
       is-typedarray: 1.0.0
     dev: false
 
-  /typedoc-plugin-markdown@3.15.3(typedoc@0.24.8):
-    resolution: {integrity: sha512-idntFYu3vfaY3eaD+w9DeRd0PmNGqGuNLKihPU9poxFGnATJYGn9dPtEhn2QrTdishFMg7jPXAhos+2T6YCWRQ==}
+  /typedoc-plugin-frontmatter@0.0.2:
+    resolution: {integrity: sha512-xPw76L4S4/zbd01Tt89CVsJdPiMxztlmkXaA2Wu/l0KEbIrsqSHPv/sGsPI1O+pkZrSpaFr94qLA3ls1MrpKKw==}
+    dependencies:
+      yaml: 2.3.1
+    dev: true
+
+  /typedoc-plugin-markdown@4.0.0-next.17(prettier@3.0.0)(typedoc@0.24.8):
+    resolution: {integrity: sha512-hzIoOt81PTkO50m+QJAo4B4tnsmp5sfv7kQfPOx/ZKRLODoa3buQzo2k6/sHGahUeKIyzHtqoiEFzB6Bl4nHQQ==}
     peerDependencies:
+      prettier: '>=1.8.0'
       typedoc: '>=0.24.0'
     dependencies:
-      handlebars: 4.7.7
+      prettier: 3.0.0
       typedoc: 0.24.8(typescript@5.1.6)
     dev: true
 
@@ -7948,14 +7951,6 @@ packages:
   /ua-parser-js@1.0.35:
     resolution: {integrity: sha512-fKnGuqmTBnIE+/KXSzCn4db8RTigUzw1AN0DmdU6hJovUTbYJKyqj+8Mt1c4VfRDnOVJnENmfYkIPZ946UrSAA==}
     dev: false
-
-  /uglify-js@3.17.4:
-    resolution: {integrity: sha512-T9q82TJI9e/C1TAxYvfb16xO120tMVFZrGA3f9/P4424DNu6ypK103y0GPFVa17yotwSyZW5iYXgjYHkGrJW/g==}
-    engines: {node: '>=0.8.0'}
-    hasBin: true
-    requiresBuild: true
-    dev: true
-    optional: true
 
   /unherit@1.1.3:
     resolution: {integrity: sha512-Ft16BJcnapDKp0+J/rqFC3Rrk6Y/Ng4nzsC028k2jdDII/rdZ7Wd3pPT/6+vIIxRagwRc9K0IUX0Ra4fKvw+WQ==}
@@ -8472,10 +8467,6 @@ packages:
   /wildcard@2.0.1:
     resolution: {integrity: sha512-CC1bOL87PIWSBhDcTrdeLo6eGT7mCFtrg0uIJtqJUFyK+eJnzl8A1niH56uu7KMa5XFrtiV+AQuHO3n7DsHnLQ==}
 
-  /wordwrap@1.0.0:
-    resolution: {integrity: sha512-gvVzJFlPycKc5dZN4yPkP8w7Dc37BtP1yczEneOb4uq34pXZcvrtRTmWV8W+Ume+XCxKgbjM+nevkyFPMybd4Q==}
-    dev: true
-
   /wrap-ansi@7.0.0:
     resolution: {integrity: sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==}
     engines: {node: '>=10'}
@@ -8562,6 +8553,11 @@ packages:
     resolution: {integrity: sha512-r3vXyErRCYJ7wg28yvBY5VSoAF8ZvlcW9/BwUzEtUsjvX/DKs24dIkuwjtuprwJJHsbyUbLApepYTR1BN4uHrg==}
     engines: {node: '>= 6'}
     dev: false
+
+  /yaml@2.3.1:
+    resolution: {integrity: sha512-2eHWfjaoXgTBC2jNM1LRef62VQa0umtvRiDSk6HSzW7RvS5YtkabJrwYLLEKWBc8a5U2PTSCs+dJjUTJdlHsWQ==}
+    engines: {node: '>= 14'}
+    dev: true
 
   /yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}

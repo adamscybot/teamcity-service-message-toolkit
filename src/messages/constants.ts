@@ -1,3 +1,4 @@
+/** @category Message Builder */
 export const TC_STATISTICS_KEYS = [
   'ArtifactsSize',
   'VisibleArtifactsSize',
@@ -36,6 +37,7 @@ export const TC_STATISTICS_KEYS = [
   'TimeSpentInQueue',
 ] as const
 
+/** @category Message Builder */
 export const TC_XML_TYPES = [
   'junit',
   'surefire',

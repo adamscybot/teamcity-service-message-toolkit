@@ -9,7 +9,7 @@ import { MissingMessageTypeInRepository } from '../../lib/errors'
 import builder, {
   MultipleAttributeMessageFactory,
   SingleAttributeMessageFactory,
-} from '../../messages/builder'
+} from '../../messages/builder/builder'
 
 export type SemanticMessageStreamChunk =
   | BasicMessageStreamOutputChunk

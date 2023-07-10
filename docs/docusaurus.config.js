@@ -29,7 +29,9 @@ const config = {
     [
       'docusaurus-plugin-typedoc',
       {
-        entryPoints: ['../src/messages/builder.ts'],
+        entryPoints: ['../src/messages/builder', '../src/tokeniser'],
+        tsconfig: '../tsconfig.json',
+        outputFileStrategy: 'modules',
       },
     ],
   ],

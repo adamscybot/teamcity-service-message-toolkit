@@ -151,6 +151,7 @@ export type TokenRuleBuilderOpts<
 export type TokenRuleBuilder<AdditionalOpts extends Record<string, any> = {}> =
   (opts: TokenRuleBuilderOpts<AdditionalOpts>) => Rule
 
+/** @ignore */
 export type WrappedLiteralTokenValue = { unescaped: string; original: string }
 
 const createLiteralTokenValue = (

@@ -12,16 +12,16 @@ import type {
   MessageTypeRepositoryBuilder,
   ExtractSchemaFromMessageFactory,
   ValidBlockContextKeys,
-} from './types.js'
+} from '../types.js'
 import schemaBuilder, {
   InferMultiAttributeMessageSchema,
   RawKwargsOfMultiAttrSchema,
-} from './schema.js'
+} from '../schema.js'
 import {
   formatMultiAttrServiceMessage,
   formatSingleAttrServiceMessage,
-} from '../lib/format.js'
-import { isMultiAttributeMessage, isSingleAttributeMessage } from './utils.js'
+} from '../../lib/format.js'
+import { isMultiAttributeMessage, isSingleAttributeMessage } from '../utils.js'
 
 let util: typeof import('util')
 
@@ -35,6 +35,7 @@ if (
 
 const chalk = new Chalk({ level: 2 })
 
+/** @category Common */
 export interface MessageTypeOpts<MessageName extends string = string> {
   /**
    * The name of the message that is usually found in the first part of the
@@ -47,6 +48,7 @@ export interface MessageTypeOpts<MessageName extends string = string> {
   toServiceMessageString(): string
 }
 
+/** @category Common */
 export interface MessageOpts {
   /**
    * The identifier of the "flow" on which this message was outputted. This is
@@ -71,6 +73,7 @@ function createMessage<MessageName extends string = string>({
   }
 }
 
+/** @category Single Attribute */
 export type SingleAttributeMessageTypeOpts<
   MessageName extends string,
   Schema extends ZodSchema,
@@ -86,6 +89,7 @@ export type SingleAttributeMessageTypeOpts<
   } & MessageTypeBuilderSingleEndsWithOpts
 }
 
+/** @category Single Attribute */
 export type SingleAttributeMessageOpts = MessageOpts & {
   /**
    * The raw string representation of the initial value. Or `undefined` if
@@ -94,7 +98,7 @@ export type SingleAttributeMessageOpts = MessageOpts & {
   rawValue?: string
 }
 
-export function createSingleAttributeMessage<
+function createSingleAttributeMessage<
   MessageName extends string,
   Schema extends ZodSchema,
   BlockContextCloseFactory extends MessageFactory | undefined = undefined
@@ -227,6 +231,7 @@ export function createSingleAttributeMessage<
   return singleAttrMessage
 }
 
+/** @category Multiple Attributes */
 export type MultiAttributeMessageTypeOpts<
   MessageName extends string,
   Schema extends Readonly<ZodSchema>,
@@ -247,7 +252,7 @@ export type MultiAttributeMessageTypeOpts<
     blockKey?: BlockContextKey
   }
 }
-
+/** @category Builder */
 export type MultiAttributeMessageOpts<Schema extends Readonly<ZodSchema>> =
   MessageOpts & {
     /**
@@ -436,6 +441,7 @@ function createMultiAttributeMessage<
   return multiAttributeMessage
 }
 
+/** @category Single Attribute */
 export type SingleAttributeMessageFactory<
   MessageName extends string,
   Schema extends ZodSchema,
@@ -457,7 +463,7 @@ export type SingleAttributeMessageFactory<
   /** The built schema for this message type */
   schema: Schema
 }
-
+/** @category Multiple Attributes */
 export type MultiAttributeMessageFactoryBuildOpts<
   MessageName extends string,
   Schema extends Readonly<ZodSchema>
@@ -465,7 +471,7 @@ export type MultiAttributeMessageFactoryBuildOpts<
   MultiAttributeMessageTypeOpts<MessageName, Schema>,
   'messageName' | 'blockContextOpts'
 >
-
+/** @category Multiple Attributes */
 export type MultipleAttributeMessageFactory<
   MessageName extends string,
   Schema extends Readonly<ZodSchema>,
@@ -494,6 +500,7 @@ export type MultipleAttributeMessageFactory<
 }
 
 /**
+ * @category Multiple Attributes
  * @typeParam Schema - The schema of the parent message
  * @typeParam BlockContextCloseFactory - The factory that has been configured as
  *   the the one that represents the end message type.
@@ -523,11 +530,13 @@ export type MessageTypeBuilderMultiEndsWithOpts<
    * @remarks
    * Comparison via a custom matcher function, or via comparing the post-schema
    * values, may come later.
+   * @category Builder
    * @defaultValue `undefined` Which means the message type of the designated end message factory will trigger the block to end, no matter the attributes.
    */
   blockKey: ValidBlockContextKeys<Schema, BlockContextCloseFactory>
 }
 
+/** @category Multiple Attributes */
 export type MessageTypeBuilderSingleEndsWithOpts = {
   /**
    * If set to `true`, the value of the single attribute message is matched
@@ -545,6 +554,7 @@ export type MessageTypeBuilderSingleEndsWithOpts = {
    * @remarks
    * Comparison via a custom matcher function, or via comparing the post-schema
    * values, may come later.
+   * @category Builder
    * @defaultValue `false`
    */
   useValueAsBlockKey?: boolean
@@ -561,6 +571,7 @@ export type MessageTypeBuilderSingleEndsWithOpts = {
  * inability to do partial inference in TypeScript. By using this pattern, we
  * utilise the currying workaround which ensures the user does not have to
  * define inferrable type args manually.
+ * @category Builder
  * @example Create a single attribute message factory
  *
  * ```ts
@@ -627,61 +638,207 @@ export type MessageTypeBuilderSingleEndsWithOpts = {
  * @see {@link MessageTypeRepository} for how to easily construct block context pairs
  * as part of the repository builder flow.
  */
-const builder = {
-  /**
-   * Each message processed by the factory has an identifiable message name.
-   * Consuming systems will usually need to know which message name the factory
-   * will handle.
-   *
-   * @param messageName The service message name that identifies the type of
-   *   message the resulting factory will handle.
-   * @returns The rest of the builder, to chain configuration.
-   * @see See {@link builder} for examples
-   */
-  name: <MessageName extends string>(messageName: MessageName) => ({
+const messageBuilder = () => {
+  const builder = {
     /**
-     * Indicate the message type that this factory will handle is one which is
-     * of the multi attribute format.
+     * Each message processed by the factory has an identifiable message name.
+     * Consuming systems will usually need to know which message name the
+     * factory will handle.
      *
+     * @param messageName The service message name that identifies the type of
+     *   message the resulting factory will handle.
      * @returns The rest of the builder, to chain configuration.
-     * @see {@link https://www.jetbrains.com/help/teamcity/service-messages.html#Service+Messages+Formats|Teamcity Message Formats}
      * @see See {@link builder} for examples
      */
-    multipleAttribute: () => ({
+    name: <MessageName extends string>(messageName: MessageName) => ({
       /**
-       * Define a schema that represents the attributes of this message. The
-       * schema can also coerce/transform values so that when accessed later
-       * they will be a more egonomic type.
+       * Indicate the message type that this factory will handle is one which is
+       * of the multi attribute format.
        *
-       * @param getSchema A function that is passed the `multiAttribute` schema
-       *   builder from {@link schemaBuilder} and returns the a Zod schema. There
-       *   is one restriction on the Zod schema and that is it must accept an
-       *   object of key-value pairs.
        * @returns The rest of the builder, to chain configuration.
+       * @see {@link https://www.jetbrains.com/help/teamcity/service-messages.html#Service+Messages+Formats|Teamcity Message Formats}
        * @see See {@link builder} for examples
-       * @see {@link schemaBuilder} for the schema builder helpers.
-       * @see https://zod.dev which powers the underlying schema. All of its expressiveness can be utilised.
        */
-      schema: <Schema extends ZodSchema>(
-        getSchema: (
-          schemas: ReturnType<typeof schemaBuilder.multiAttribute>
-        ) => InferMultiAttributeMessageSchema<Schema>
-      ) => {
-        let schema = getSchema(schemaBuilder.multiAttribute())
+      multipleAttribute: () => ({
+        /**
+         * Define a schema that represents the attributes of this message. The
+         * schema can also coerce/transform values so that when accessed later
+         * they will be a more egonomic type.
+         *
+         * @param getSchema A function that is passed the `multiAttribute`
+         *   schema builder from {@link schemaBuilder} and returns the a Zod
+         *   schema. There is one restriction on the Zod schema and that is it
+         *   must accept an object of key-value pairs.
+         * @returns The rest of the builder, to chain configuration.
+         * @see See {@link builder} for examples
+         * @see {@link schemaBuilder} for the schema builder helpers.
+         * @see https://zod.dev which powers the underlying schema. All of its expressiveness can be utilised.
+         */
+        schema: <Schema extends ZodSchema>(
+          getSchema: (
+            schemas: ReturnType<typeof schemaBuilder.multiAttribute>
+          ) => InferMultiAttributeMessageSchema<Schema>
+        ) => {
+          let schema = getSchema(schemaBuilder.multiAttribute())
 
-        const createSchemaTypedBuilder = <
-          BlockContextCloseFactory extends MessageFactory | undefined,
-          BlockContextKey extends ValidBlockContextKeys<
-            Schema,
-            BlockContextCloseFactory
-          >
+          const createSchemaTypedBuilder = <
+            BlockContextCloseFactory extends MessageFactory | undefined,
+            BlockContextKey extends ValidBlockContextKeys<
+              Schema,
+              BlockContextCloseFactory
+            >
+          >({
+            closeFactory,
+            blockKey,
+          }: {
+            closeFactory: BlockContextCloseFactory
+            blockKey: BlockContextKey | undefined
+          }) => ({
+            /**
+             * Specifying this option on the message type defines this message
+             * type as one which is a "block", meaning it has a sister message
+             * type that defines when this block as ended.
+             *
+             * @param factory A message factory that represents the "end"
+             *   message. Typically this would be provided using the
+             *   {@link MessageTypeRepositoryRef} utility that is passed as an
+             *   argument to `defineMessage` when constructing a
+             *   {@link MessageTypeRepository} via the
+             *   {@link MessageTypeRepositoryBuilder}
+             * @param opts {@link MessageTypeBuilderMultiEndsWithOpts}
+             * @returns The rest of the builder, to chain configuration.
+             * @see See {@link builder} for examples
+             */
+            endsWith: <
+              ReferencedFactory extends MessageFactory,
+              Opts extends MessageTypeBuilderMultiEndsWithOpts<
+                Schema,
+                ReferencedFactory
+              >
+            >(
+              factory: ReferencedFactory,
+              opts?: Opts
+            ) => {
+              return createSchemaTypedBuilder<
+                ReferencedFactory,
+                Opts['blockKey']
+              >({
+                closeFactory: factory,
+                blockKey: opts?.blockKey,
+              })
+            },
+
+            /**
+             * Construct the factory that can be used to generate a
+             * representation of a message as defined by the chain leading up to
+             * this point.
+             *
+             * @param messageTypeOpts The
+             *   {@link MultiAttributeMessageFactoryBuildOpts} that defines
+             *   aspects of the construct of the message type.
+             * @returns A {@link MultipleAttributeMessageFactory} that handles
+             *   the defined message.
+             */
+            build: (
+              messageTypeOpts?: MultiAttributeMessageFactoryBuildOpts<
+                MessageName,
+                Schema
+              >
+            ) => {
+              const messageFactory: MultipleAttributeMessageFactory<
+                MessageName,
+                Schema,
+                BlockContextCloseFactory,
+                BlockContextKey
+              > = (opts) =>
+                createMultiAttributeMessage<
+                  MessageName,
+                  Schema,
+                  BlockContextCloseFactory,
+                  BlockContextKey
+                >({
+                  ...opts,
+                  // Cast needed since the omit of `messageName` in `MultiAttributeMessageFactoryBuildOpts` removes `messageName`
+                  // which causes TS to lose some needed context to resolve the merge.
+                  ...(messageTypeOpts as MultiAttributeMessageTypeOpts<
+                    MessageName,
+                    Schema,
+                    BlockContextCloseFactory,
+                    BlockContextKey
+                  >),
+                  messageName,
+                  schema,
+                  blockContextOpts: {
+                    closeFactory,
+                    blockKey,
+                  },
+                })
+
+              messageFactory.syntaxType = 'multiAttr'
+              messageFactory.messageName = messageName
+              messageFactory.schema = schema
+
+              return messageFactory
+            },
+          })
+
+          return createSchemaTypedBuilder({
+            blockKey: undefined,
+            closeFactory: undefined,
+          })
+        },
+      }),
+      /**
+       * Indicate the message type that this factory will handle is one which is
+       * of the single attribute format.
+       *
+       * @see {@link https://www.jetbrains.com/help/teamcity/service-messages.html#Service+Messages+Formats|Teamcity Message Formats}
+       */
+      singleAttribute: () => {
+        const createSingleAttrBuilder = <
+          Schema extends ZodSchema,
+          BlockContextCloseFactory extends MessageFactory | undefined
         >({
+          schema,
           closeFactory,
-          blockKey,
+          contextOpts,
         }: {
+          schema: Schema
           closeFactory: BlockContextCloseFactory
-          blockKey: BlockContextKey | undefined
+          contextOpts: MessageTypeBuilderSingleEndsWithOpts | undefined
         }) => ({
+          /**
+           * Define a schema that represents the single value of this message.
+           * The schema can also coerce/transform values so that when accessed
+           * later they will be a more egonomic type.
+           *
+           * By default, if this is not called, it is assumed that the single
+           * value is a required string.
+           *
+           * @param getSchema A function that is passed the `singleAttribute`
+           *   schema builder from {@link schemaBuilder} and returns the a Zod
+           *   schema. There is one restriction on the Zod schema and that is it
+           *   must accept a singular string primitive.
+           * @returns The rest of the builder, to chain configuration.
+           * @see See {@link builder} for examples
+           * @see {@link schemaBuilder} for the schema builder helpers.
+           * @see https://zod.dev which powers the underlying schema. All of its expressiveness can be utilised.
+           */
+          schema<ProvidedSchema extends ZodSchema>(
+            getSchema: (
+              schemas: ReturnType<typeof schemaBuilder.singleAttribute>
+            ) => ProvidedSchema
+          ) {
+            return createSingleAttrBuilder<
+              ProvidedSchema,
+              BlockContextCloseFactory
+            >({
+              schema: getSchema(schemaBuilder.singleAttribute()),
+              closeFactory,
+              contextOpts,
+            })
+          },
+
           /**
            * Specifying this option on the message type defines this message
            * type as one which is a "block", meaning it has a sister message
@@ -693,75 +850,42 @@ const builder = {
            *   argument to `defineMessage` when constructing a
            *   {@link MessageTypeRepository} via the
            *   {@link MessageTypeRepositoryBuilder}
-           * @param opts {@link MessageTypeBuilderMultiEndsWithOpts}
+           * @param opts {@link MessageTypeBuilderSingleEndsWithOpts}
            * @returns The rest of the builder, to chain configuration.
            * @see See {@link builder} for examples
            */
           endsWith: <
             ReferencedFactory extends MessageFactory,
-            Opts extends MessageTypeBuilderMultiEndsWithOpts<
-              Schema,
-              ReferencedFactory
-            >
+            Opts extends MessageTypeBuilderSingleEndsWithOpts
           >(
             factory: ReferencedFactory,
             opts?: Opts
           ) => {
-            return createSchemaTypedBuilder<
-              ReferencedFactory,
-              Opts['blockKey']
-            >({
+            return createSingleAttrBuilder<Schema, ReferencedFactory>({
+              schema,
               closeFactory: factory,
-              blockKey: opts?.blockKey,
+              contextOpts: opts,
             })
           },
-
           /**
            * Construct the factory that can be used to generate a representation
            * of a message as defined by the chain leading up to this point.
            *
-           * @param messageTypeOpts The
-           *   {@link MultiAttributeMessageFactoryBuildOpts} that defines aspects
-           *   of the construct of the message type.
-           * @returns A {@link MultipleAttributeMessageFactory} that handles the
+           * @returns A {@link SingleAttributeMessageFactory} that handles the
            *   defined message.
            */
-          build: (
-            messageTypeOpts?: MultiAttributeMessageFactoryBuildOpts<
+          build() {
+            const messageFactory: SingleAttributeMessageFactory<
               MessageName,
               Schema
-            >
-          ) => {
-            const messageFactory: MultipleAttributeMessageFactory<
-              MessageName,
-              Schema,
-              BlockContextCloseFactory,
-              BlockContextKey
-            > = (opts) =>
-              createMultiAttributeMessage<
-                MessageName,
-                Schema,
-                BlockContextCloseFactory,
-                BlockContextKey
-              >({
+            > = (opts: SingleAttributeMessageOpts) =>
+              createSingleAttributeMessage<MessageName, Schema>({
                 ...opts,
-                // Cast needed since the omit of `messageName` in `MultiAttributeMessageFactoryBuildOpts` removes `messageName`
-                // which causes TS to lose some needed context to resolve the merge.
-                ...(messageTypeOpts as MultiAttributeMessageTypeOpts<
-                  MessageName,
-                  Schema,
-                  BlockContextCloseFactory,
-                  BlockContextKey
-                >),
-                messageName,
                 schema,
-                blockContextOpts: {
-                  closeFactory,
-                  blockKey,
-                },
+                messageName,
               })
 
-            messageFactory.syntaxType = 'multiAttr'
+            messageFactory.syntaxType = 'singleAttr'
             messageFactory.messageName = messageName
             messageFactory.schema = schema
 
@@ -769,126 +893,21 @@ const builder = {
           },
         })
 
-        return createSchemaTypedBuilder({
-          blockKey: undefined,
+        return createSingleAttrBuilder({
+          schema: z.string(),
           closeFactory: undefined,
+          contextOpts: undefined,
         })
       },
     }),
-    /**
-     * Indicate the message type that this factory will handle is one which is
-     * of the single attribute format.
-     *
-     * @see {@link https://www.jetbrains.com/help/teamcity/service-messages.html#Service+Messages+Formats|Teamcity Message Formats}
-     */
-    singleAttribute: () => {
-      const createSingleAttrBuilder = <
-        Schema extends ZodSchema,
-        BlockContextCloseFactory extends MessageFactory | undefined
-      >({
-        schema,
-        closeFactory,
-        contextOpts,
-      }: {
-        schema: Schema
-        closeFactory: BlockContextCloseFactory
-        contextOpts: MessageTypeBuilderSingleEndsWithOpts | undefined
-      }) => ({
-        /**
-         * Define a schema that represents the single value of this message. The
-         * schema can also coerce/transform values so that when accessed later
-         * they will be a more egonomic type.
-         *
-         * By default, if this is not called, it is assumed that the single
-         * value is a required string.
-         *
-         * @param getSchema A function that is passed the `singleAttribute`
-         *   schema builder from {@link schemaBuilder} and returns the a Zod
-         *   schema. There is one restriction on the Zod schema and that is it
-         *   must accept a singular string primitive.
-         * @returns The rest of the builder, to chain configuration.
-         * @see See {@link builder} for examples
-         * @see {@link schemaBuilder} for the schema builder helpers.
-         * @see https://zod.dev which powers the underlying schema. All of its expressiveness can be utilised.
-         */
-        schema<ProvidedSchema extends ZodSchema>(
-          getSchema: (
-            schemas: ReturnType<typeof schemaBuilder.singleAttribute>
-          ) => ProvidedSchema
-        ) {
-          return createSingleAttrBuilder<
-            ProvidedSchema,
-            BlockContextCloseFactory
-          >({
-            schema: getSchema(schemaBuilder.singleAttribute()),
-            closeFactory,
-            contextOpts,
-          })
-        },
+  }
 
-        /**
-         * Specifying this option on the message type defines this message type
-         * as one which is a "block", meaning it has a sister message type that
-         * defines when this block as ended.
-         *
-         * @param factory A message factory that represents the "end" message.
-         *   Typically this would be provided using the
-         *   {@link MessageTypeRepositoryRef} utility that is passed as an
-         *   argument to `defineMessage` when constructing a
-         *   {@link MessageTypeRepository} via the
-         *   {@link MessageTypeRepositoryBuilder}
-         * @param opts {@link MessageTypeBuilderSingleEndsWithOpts}
-         * @returns The rest of the builder, to chain configuration.
-         * @see See {@link builder} for examples
-         */
-        endsWith: <
-          ReferencedFactory extends MessageFactory,
-          Opts extends MessageTypeBuilderSingleEndsWithOpts
-        >(
-          factory: ReferencedFactory,
-          opts?: Opts
-        ) => {
-          return createSingleAttrBuilder<Schema, ReferencedFactory>({
-            schema,
-            closeFactory: factory,
-            contextOpts: opts,
-          })
-        },
-        /**
-         * Construct the factory that can be used to generate a representation
-         * of a message as defined by the chain leading up to this point.
-         *
-         * @returns A {@link SingleAttributeMessageFactory} that handles the
-         *   defined message.
-         */
-        build() {
-          const messageFactory: SingleAttributeMessageFactory<
-            MessageName,
-            Schema
-          > = (opts: SingleAttributeMessageOpts) =>
-            createSingleAttributeMessage<MessageName, Schema>({
-              ...opts,
-              schema,
-              messageName,
-            })
-
-          messageFactory.syntaxType = 'singleAttr'
-          messageFactory.messageName = messageName
-          messageFactory.schema = schema
-
-          return messageFactory
-        },
-      })
-
-      return createSingleAttrBuilder({
-        schema: z.string(),
-        closeFactory: undefined,
-        contextOpts: undefined,
-      })
-    },
-  }),
+  return builder
 }
 
-export type MessageTypeBuilder = typeof builder
+/** @category Builder */
+export type MessageTypeBuilder = ReturnType<typeof messageBuilder>
 
-export default builder
+export { messageBuilder }
+
+export default messageBuilder()

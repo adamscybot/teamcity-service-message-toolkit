@@ -11,9 +11,10 @@ import type {
   SingleAttributeMessageFactory,
   MessageTypeBuilderMultiEndsWithOpts,
   MessageTypeBuilderSingleEndsWithOpts,
-} from './builder.js'
+} from './builder/builder.js'
 import { defaultMessageTypeRepository } from './repository.js'
 
+/** @category Message Builder */
 export interface Message<MessageName extends string> {
   /** @see MessageOpts.flowId */
   flowId(): string | undefined
@@ -44,6 +45,8 @@ interface ValidateableMessage {
  * These methods are always provided regardless of if the context was configured
  * on the method, since this helps make consuming code that needs to parse logs
  * easier to write.
+ *
+ * @category Message Builder
  */
 export interface ContextualMessage<
   BlockContextCloseFactory extends MessageFactory | undefined
@@ -81,6 +84,7 @@ export interface ContextualMessage<
   ): boolean
 }
 
+/** @category Message Builder */
 export interface SingleAttributeMessage<
   MessageName extends string,
   Schema extends ZodSchema,
@@ -124,6 +128,7 @@ export interface SingleAttributeMessage<
   ansi(): string
 }
 
+/** @ignore */
 export type ValidBlockContextKeys<
   Schema extends ZodSchema,
   BlockContextCloseFactory extends MessageFactory | undefined
@@ -138,6 +143,7 @@ export type ValidBlockContextKeys<
         >
       : never)
 
+/** @category Message Builder */
 export interface MultiAttributeMessage<
   MessageName extends string,
   Schema extends Readonly<ZodSchema>,
@@ -215,10 +221,12 @@ export interface MultiAttributeMessage<
   ansi(): string
 }
 
+/** @category Message Builder */
 export type MessageFactory =
   | SingleAttributeMessageFactory<any, any, any>
   | MultipleAttributeMessageFactory<any, any, any, any>
 
+/** Hidden */
 export type ExtractSchemaFromMessageFactory<Factory extends MessageFactory> =
   Factory extends MultipleAttributeMessageFactory<
     infer RefMessageName,
@@ -241,13 +249,14 @@ export type MessageTypesMap<
   >
 }
 
+/** @category Message Repository */
 export interface MessageTypeRepository<
   MessageTypes extends Readonly<Array<MessageFactory>>
 > {
   getFactories(): MessageTypes
   /**
-   * Given a service message name that a message factory registered inside
-   * this repository handles, return that factory.
+   * Given a service message name that a message factory registered inside this
+   * repository handles, return that factory.
    *
    * @example
    *
@@ -261,10 +270,10 @@ export interface MessageTypeRepository<
    *
    * @param key - The service message name that the desired message factory
    *   handles.
-   * @returns The factory stored in the repository that handles the passed
-   *   in service message name.
-   * @throws {MissingMessageTypeInRepository} If factory not registered in
-   *   this repository for this name
+   * @returns The factory stored in the repository that handles the passed in
+   *   service message name.
+   * @throws {MissingMessageTypeInRepository} If factory not registered in this
+   *   repository for this name
    */
   getFactory<MessageType extends keyof MessageTypesMap<MessageTypes>>(
     key: MessageType
@@ -279,6 +288,7 @@ export interface MessageTypeRepository<
   ): ReturnType<MessageFactoryForLogLine<this, Line>>
 }
 
+/** @category Message Repository */
 export type MessageTypeRepositoryRef<
   MessageTypes extends Readonly<Array<MessageFactory>>
 > = <MessageName extends keyof MessageTypesMap<MessageTypes>>(
@@ -290,6 +300,7 @@ export type MessageTypeRepositoryRef<
   }
 >
 
+/** @category Message Repository */
 export type RepositoryDefineMessageCb<
   MessageTypes extends Readonly<Array<MessageFactory>>,
   NewFactory extends MessageFactory
@@ -306,6 +317,7 @@ export type RepositoryDefineMessageCb<
   ref: MessageTypeRepositoryRef<MessageTypes>
 ) => NewFactory
 
+/** @category Message Repository */
 export type MessageTypeRepositoryBuilder<
   MessageTypes extends Readonly<Array<MessageFactory>>
 > = {
@@ -326,6 +338,7 @@ type TrimWhitespace<S extends string> = S extends ` ${infer R}`
   ? TrimWhitespace<R>
   : S
 
+/** @ignore */
 export type ExtractAttributeKeys<Attrs> =
   Attrs extends `${infer Attr} ${infer Rest}`
     ? Attr extends `${infer Name}=${string}`
@@ -335,17 +348,18 @@ export type ExtractAttributeKeys<Attrs> =
     ? Name | ExtractAttributeKeys<Rest>
     : never
 
+/** @ignore */
 export type UnpackMessageString<Line> =
   Line extends `##teamcity[${infer MessageName} ${infer Attrs}]`
     ? { messageName: MessageName; attrs: ExtractAttributeKeys<Attrs> }
     : never
-
+/** @ignore */
 export type MessageTypesFromRepository<
   Repository extends MessageTypeRepository<any>
 > = Repository extends MessageTypeRepository<infer MessageTypes>
   ? MessageTypes
   : never
-
+/** @ignore */
 export type MessageNameToFactoryMap<
   Repository extends MessageTypeRepository<any>
 > = {
@@ -360,7 +374,7 @@ type lol = MessageNameToFactoryMap<typeof defaultMessageTypeRepository>
 //   MessageTypesFromRepository<typeof defaultMessageTypeRepository>[number],
 //   { messageName: 'buildNumber' }
 // >
-
+/** @ignore */
 export type MessageFactoryForLogLine<
   Repository extends MessageTypeRepository<any>,
   Line extends string,

@@ -6,18 +6,21 @@ import type {
 import type {
   MultipleAttributeMessageFactory,
   SingleAttributeMessageFactory,
-} from './builder.js'
+} from './builder/builder.js'
 
+/** @category Message Builder */
 export const isSingleAttributeMessageFactory = (
   factory: MessageFactory
 ): factory is SingleAttributeMessageFactory<any, any> =>
   factory.syntaxType === 'singleAttr'
 
+/** @category Message Builder */
 export const isMultiAttributeMessageFactory = (
   factory: MessageFactory
 ): factory is MultipleAttributeMessageFactory<any, any> =>
   factory.syntaxType === 'multiAttr'
 
+/** @category Message Builder */
 export const isMultiAttributeMessage = (
   message:
     | MultiAttributeMessage<any, any, any, any>
@@ -25,6 +28,7 @@ export const isMultiAttributeMessage = (
 ): message is MultiAttributeMessage<any, any, any, any> =>
   message.syntaxType() === 'multiAttr'
 
+/** @category Message Builder */
 export const isSingleAttributeMessage = (
   message:
     | MultiAttributeMessage<any, any, any, any>
