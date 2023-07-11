@@ -12,7 +12,6 @@ import type {
   MessageTypeBuilderMultiEndsWithOpts,
   MessageTypeBuilderSingleEndsWithOpts,
 } from './builder/builder.js'
-import { defaultMessageTypeRepository } from './repository.js'
 
 /** @category Message Builder */
 export interface Message<MessageName extends string> {
@@ -70,7 +69,7 @@ export interface ContextualMessage<
    * attribute message, and depending on the configured context options when the
    * message was created.
    *
-   * @param message The message that you wish to check.
+   * @param message - The message that you wish to check.
    * @returns `boolean` that is true if the passed message is the matching end
    *   message, otherwise false. Will also return false if no close factory was
    *   provided in the message options.
@@ -103,7 +102,7 @@ export interface SingleAttributeMessage<
   /**
    * Set the underlying string that represents the value.
    *
-   * @param rawValue The underlying raw string value, or undefined to unset.
+   * @param rawValue - The underlying raw string value, or undefined to unset.
    * @returns The message object.
    */
   setRawValue(rawValue: string | undefined): this
@@ -112,7 +111,7 @@ export interface SingleAttributeMessage<
   //  * is the same as the underlying raw value (a string), unless the message type
   //  * dictates a different type.
   //  *
-  //  * @param value The new representational value to set
+  //  * @param value - The new representational value to set
   //  * @returns The message object.
   //  */
   // setValue(value: ValueType): this
@@ -121,7 +120,7 @@ export interface SingleAttributeMessage<
    * is represented as. Usually, this is the same as the underlying raw value (a
    * string), unless the message type dictates a different type.
    *
-   * @param value The representational value.
+   * @param value - The representational value.
    */
   getValue(): Zod.infer<Schema>
 
@@ -159,7 +158,7 @@ export interface MultiAttributeMessage<
   /**
    * Get the underlying string that represents the value.
    *
-   * @param key The key of the attribute to get.
+   * @param key - The key of the attribute to get.
    * @returns The underlying raw string value for this attribute, or undefined
    *   if it was not set.
    */
@@ -175,8 +174,8 @@ export interface MultiAttributeMessage<
   /**
    * Set the underlying string that represents the value.
    *
-   * @param key The key of the attribute to set.
-   * @param rawValue The underlying raw string value for this attribute, or
+   * @param key - The key of the attribute to set.
+   * @param rawValue - The underlying raw string value for this attribute, or
    *   undefined if it was not set.
    * @returns The message object.
    */
@@ -187,7 +186,7 @@ export interface MultiAttributeMessage<
    * underlying raw value (a string), unless the message type dictates a
    * different type.
    *
-   * @param key The key of the attribute to get.
+   * @param key - The key of the attribute to get.
    * @returns The representational value for this attribute.
    */
   getAttr<Key extends StrictKeysOfMultiAttrSchema<Schema>>(
@@ -209,8 +208,8 @@ export interface MultiAttributeMessage<
   //  * is the same as the underlying raw value (a string), unless the message type
   //  * dictates a different type.
   //  *
-  //  * @param key The key of the attribute to set.
-  //  * @param value The new representational value to set for this attribute.
+  //  * @param key - The key of the attribute to set.
+  //  * @param value - The new representational value to set for this attribute.
   //  * @returns The message object.
   //  */
   // setAttr<Key extends StrictKeysOfMultiAttrSchema<Schema>>(
@@ -272,8 +271,8 @@ export interface MessageTypeRepository<
    *   handles.
    * @returns The factory stored in the repository that handles the passed in
    *   service message name.
-   * @throws {MissingMessageTypeInRepository} If factory not registered in this
-   *   repository for this name
+   * @throws {@link MissingMessageTypeInRepository} If factory not registered in
+   *   this repository for this name
    */
   getFactory<MessageType extends keyof MessageTypesMap<MessageTypes>>(
     key: MessageType
@@ -305,8 +304,9 @@ export type RepositoryDefineMessageCb<
   MessageTypes extends Readonly<Array<MessageFactory>>,
   NewFactory extends MessageFactory
 > = /**
- * @param builder A {@link messageTypeBuilder} to construct a new message type.
- * @param ref A function that takes a `messageName` of message type already
+ * @param builder - A {@link messageTypeBuilder} to construct a new message
+ *   type.
+ * @param ref - A function that takes a `messageName` of message type already
  *   registered in the parent {@link MessageTypeRepositoryBuilder} up to this
  *   point, and returns the relevant message type for it. This is needed when
  *   linking messages, for example, the `endsWith` configuration.
@@ -322,7 +322,7 @@ export type MessageTypeRepositoryBuilder<
   MessageTypes extends Readonly<Array<MessageFactory>>
 > = {
   /**
-   * @param messageFactoryCallback A {@link RepositoryDefineMessageCb} that
+   * @param messageFactoryCallback - A {@link RepositoryDefineMessageCb} that
    *   provides easy access to the {@link MessageTypeBuilder} and
    *   {@link MessageTypeRepositoryRef} for linking message types together
    * @returns Another {@link MessageTypeRepositoryBuilder} for further chaining.
@@ -368,12 +368,7 @@ export type MessageNameToFactoryMap<
     { messageName: K }
   >
 }
-type test = MessageTypesFromRepository<typeof defaultMessageTypeRepository>
-type lol = MessageNameToFactoryMap<typeof defaultMessageTypeRepository>
-// type test = Extract<
-//   MessageTypesFromRepository<typeof defaultMessageTypeRepository>[number],
-//   { messageName: 'buildNumber' }
-// >
+
 /** @ignore */
 export type MessageFactoryForLogLine<
   Repository extends MessageTypeRepository<any>,
@@ -382,11 +377,3 @@ export type MessageFactoryForLogLine<
 > = UnpackMessageString<Line>['messageName'] extends keyof MessageNameToFactoryMap<Repository>
   ? MessageNameToFactoryMap<Repository>[UnpackMessageString<Line>['messageName']]
   : Fallback
-
-type sdfsd = MessageFactoryForLogLine<
-  typeof defaultMessageTypeRepository,
-  "##teamcity[bkloProblem test='sad']",
-  MessageFactory
->
-
-type sads = ReturnType<sdfsd>

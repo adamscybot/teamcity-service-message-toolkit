@@ -1,7 +1,7 @@
-import { ReadableStream } from 'node:stream/web'
+import { ReadableStream } from 'tc-message-toolkit/stream'
 
 export async function* getAsyncIterableFor<I>(
-  readableStream: ReadableStream<I>
+  readableStream: InstanceType<typeof ReadableStream<I>>
 ) {
   const reader = readableStream.getReader()
   try {

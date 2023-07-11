@@ -101,9 +101,9 @@ const schemaBuilder = {
         /**
          * Define an attribute that this message accepts.
          *
-         * @param attributeName The string which represents the name of the
+         * @param attributeName - The string which represents the name of the
          *   attribute
-         * @param getAttrSchema An optional function that returns a zod schema
+         * @param getAttrSchema - An optional function that returns a zod schema
          *   for this attribute. By default a schema representing a required
          *   string is provided as the first paramater. Allows for full use of
          *   Zod functionality such as transforms.

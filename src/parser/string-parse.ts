@@ -1,8 +1,5 @@
 import { escape } from '../lib/escape.js'
-import {
-  InvalidServiceMessageFormat,
-  InvalidServiceMessageFormatReasons,
-} from '../lib/errors.js'
+import { InvalidServiceMessageFormat } from '../lib/errors.js'
 
 const TC_IDENT = '##teamcity'
 
@@ -47,14 +44,14 @@ export const desconstructMessageString = (line: string): TcLogLine | null => {
     const kwargs: Record<string, string> = {}
     let value: string | undefined
 
-    for (let part of parts) {
+    for (const part of parts) {
       const [name, val] = part.split('=')
 
       if (val) {
         if (val[0] !== "'" || val[val.length - 1] !== "'") {
           throw new InvalidServiceMessageFormat(
             line,
-            // @ts-ignore
+            // @ts-ignore temp
             `Value for ${name} must be wrapped in single quotes.`
           )
         }
@@ -65,7 +62,7 @@ export const desconstructMessageString = (line: string): TcLogLine | null => {
         if (name[0] !== "'" || name[name.length - 1] !== "'") {
           throw new InvalidServiceMessageFormat(
             line,
-            // @ts-ignore
+            // @ts-ignore temp
             `Single attribute value must be wrapped in single quotes.`
           )
         }

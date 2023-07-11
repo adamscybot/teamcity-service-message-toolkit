@@ -168,8 +168,8 @@ const createRepositoryBuilder = <
  *   )
  * ```
  *
- * @returns {MessageTypeRepository} That contains message types as defined in
- *   the builder chain.
+ * @returns {@link MessageTypeRepository} That contains message types as defined
+ *   in the builder chain.
  * @see {@link messageTypeBuilder} for more examples on the options when building a message.
  */
 const repositoryBuilder = createRepositoryBuilder([])
@@ -185,7 +185,6 @@ const baseTestSchema = schemaBuilder
  * service messages.
  *
  * @category Message Repository
- * @todo Allow configuring strictness of default validation
  */
 export const defaultMessageTypeRepository = repositoryBuilder
   .defineMessage((builder, ref) =>

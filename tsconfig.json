@@ -10,7 +10,11 @@
     "strict": true,
     "noFallthroughCasesInSwitch": true,
     "noErrorTruncation": true,
-    "types": ["node"]
+    "noUnusedLocals": true,
+    "types": ["node"],
+    "paths": {
+      "tc-message-toolkit/stream": ["./src/lib/stream/node-stream.ts"]
+    }
   },
-  "include": ["src", "test/builder.test.ts"]
+  "include": ["src"]
 }

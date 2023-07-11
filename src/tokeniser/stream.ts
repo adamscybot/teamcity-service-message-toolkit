@@ -1,8 +1,7 @@
 import { Lexer } from 'moo'
-import { Transformer, TransformStream } from 'node:stream/web'
 
+import { TransformStream } from 'tc-message-toolkit/stream'
 import { Token, TokeniserOpts, tokeniser } from './lexer.js'
-import { TransformerTransformCallback } from 'stream/web'
 
 class TokeniseTransformer implements Transformer<string, Token> {
   #previous = ''
@@ -24,7 +23,7 @@ class TokeniseTransformer implements Transformer<string, Token> {
       const line = this.#previous.slice(0, eolIndex + 1)
       this.tokeniser.reset(line)
       try {
-        for (let token of this.tokeniser) {
+        for (const token of this.tokeniser) {
           controller.enqueue(token as Token)
         }
       } catch (e) {
@@ -39,7 +38,7 @@ class TokeniseTransformer implements Transformer<string, Token> {
     if (this.#previous.length > 0) {
       this.tokeniser.reset(this.#previous)
       try {
-        for (let token of this.tokeniser) {
+        for (const token of this.tokeniser) {
           controller.enqueue(token as Token)
         }
       } catch (e) {
@@ -54,3 +53,11 @@ export class TokeniserStream extends TransformStream<string, Token> {
     super(new TokeniseTransformer(opts))
   }
 }
+
+// const tokeniserStream = () => {
+//   return new TransformStream({
+//     transform(chunk, controller) {
+//       controller.enqueue(chunk.toUpperCase());
+//     },
+//   });
+// }

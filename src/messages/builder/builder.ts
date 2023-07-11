@@ -8,9 +8,6 @@ import type {
   ContextualMessage,
   MessageFactory,
   MessageTypeRepository,
-  MessageTypeRepositoryRef,
-  MessageTypeRepositoryBuilder,
-  ExtractSchemaFromMessageFactory,
   ValidBlockContextKeys,
 } from '../types.js'
 import schemaBuilder, {
@@ -22,16 +19,6 @@ import {
   formatSingleAttrServiceMessage,
 } from '../../lib/format.js'
 import { isMultiAttributeMessage, isSingleAttributeMessage } from '../utils.js'
-
-let util: typeof import('util')
-
-if (
-  typeof process !== 'undefined' &&
-  process.versions &&
-  process.versions.node
-) {
-  util = await import('util')
-}
 
 const chalk = new Chalk({ level: 2 })
 
@@ -118,7 +105,7 @@ function createSingleAttributeMessage<
   let validatedValue: Zod.infer<Schema> | null = null
   let zodErrors: ZodError | null = null
 
-  let message = createMessage<MessageName>({
+  const message = createMessage<MessageName>({
     messageName,
     flowId,
     toServiceMessageString: () =>
@@ -179,9 +166,9 @@ function createSingleAttributeMessage<
         ` 🪢  FLOW: ${this.flowId() ?? '<root>'} `
       )} ${seperator}${chalk.bgAnsi256(105).ansi256(15)(`🏷️  value: `)}${
         validatedValue !== null
-          ? //@ts-ignore
+          ? //@ts-ignore temp
             chalk.bgAnsi256(105).ansi256(15)(
-              //@ts-ignore
+              //@ts-ignore temp
               validatedValue.replace('\r', '\\r').replace('\n', '\\n') + ' '
             )
           : chalk.bgAnsi256(105).ansi256(15)(`<unavailable> `)
@@ -295,9 +282,9 @@ function createMultiAttributeMessage<
 > {
   let validatedKwargs: Zod.infer<Schema> | null = null
   let zodErrors: ZodError | null = null
-  let _rawKwargs = rawKwargs
+  const _rawKwargs = rawKwargs
 
-  let message = createMessage<MessageName>({
+  const message = createMessage<MessageName>({
     messageName,
     flowId,
     toServiceMessageString: () =>
@@ -378,10 +365,10 @@ function createMultiAttributeMessage<
 
             `${chalk.bgAnsi256(105).ansi256(15)(`🏷️  ${name}: `)}${
               validatedKwargs !== null &&
-              //@ts-ignore
-              validatedKwargs.hasOwnProperty(name)
+              //@ts-ignore temp
+              validatedKwargs.name
                 ? chalk.bgAnsi256(105).ansi256(15)(
-                    //@ts-ignore
+                    //@ts-ignore temp
                     validatedKwargs[name]
                       .replace('\r', '\\r')
                       .replace('\n', '\\n') + ' '
@@ -645,7 +632,7 @@ const messageBuilder = () => {
      * Consuming systems will usually need to know which message name the
      * factory will handle.
      *
-     * @param messageName The service message name that identifies the type of
+     * @param messageName - The service message name that identifies the type of
      *   message the resulting factory will handle.
      * @returns The rest of the builder, to chain configuration.
      * @see See {@link builder} for examples
@@ -665,7 +652,7 @@ const messageBuilder = () => {
          * schema can also coerce/transform values so that when accessed later
          * they will be a more egonomic type.
          *
-         * @param getSchema A function that is passed the `multiAttribute`
+         * @param getSchema - A function that is passed the `multiAttribute`
          *   schema builder from {@link schemaBuilder} and returns the a Zod
          *   schema. There is one restriction on the Zod schema and that is it
          *   must accept an object of key-value pairs.
@@ -679,7 +666,7 @@ const messageBuilder = () => {
             schemas: ReturnType<typeof schemaBuilder.multiAttribute>
           ) => InferMultiAttributeMessageSchema<Schema>
         ) => {
-          let schema = getSchema(schemaBuilder.multiAttribute())
+          const schema = getSchema(schemaBuilder.multiAttribute())
 
           const createSchemaTypedBuilder = <
             BlockContextCloseFactory extends MessageFactory | undefined,
@@ -699,13 +686,13 @@ const messageBuilder = () => {
              * type as one which is a "block", meaning it has a sister message
              * type that defines when this block as ended.
              *
-             * @param factory A message factory that represents the "end"
+             * @param factory - A message factory that represents the "end"
              *   message. Typically this would be provided using the
              *   {@link MessageTypeRepositoryRef} utility that is passed as an
              *   argument to `defineMessage` when constructing a
              *   {@link MessageTypeRepository} via the
              *   {@link MessageTypeRepositoryBuilder}
-             * @param opts {@link MessageTypeBuilderMultiEndsWithOpts}
+             * @param opts - {@link MessageTypeBuilderMultiEndsWithOpts}
              * @returns The rest of the builder, to chain configuration.
              * @see See {@link builder} for examples
              */
@@ -733,7 +720,7 @@ const messageBuilder = () => {
              * representation of a message as defined by the chain leading up to
              * this point.
              *
-             * @param messageTypeOpts The
+             * @param messageTypeOpts - The
              *   {@link MultiAttributeMessageFactoryBuildOpts} that defines
              *   aspects of the construct of the message type.
              * @returns A {@link MultipleAttributeMessageFactory} that handles
@@ -815,7 +802,7 @@ const messageBuilder = () => {
            * By default, if this is not called, it is assumed that the single
            * value is a required string.
            *
-           * @param getSchema A function that is passed the `singleAttribute`
+           * @param getSchema - A function that is passed the `singleAttribute`
            *   schema builder from {@link schemaBuilder} and returns the a Zod
            *   schema. There is one restriction on the Zod schema and that is it
            *   must accept a singular string primitive.
@@ -844,13 +831,13 @@ const messageBuilder = () => {
            * type as one which is a "block", meaning it has a sister message
            * type that defines when this block as ended.
            *
-           * @param factory A message factory that represents the "end" message.
-           *   Typically this would be provided using the
+           * @param factory - A message factory that represents the "end"
+           *   message. Typically this would be provided using the
            *   {@link MessageTypeRepositoryRef} utility that is passed as an
            *   argument to `defineMessage` when constructing a
            *   {@link MessageTypeRepository} via the
            *   {@link MessageTypeRepositoryBuilder}
-           * @param opts {@link MessageTypeBuilderSingleEndsWithOpts}
+           * @param opts - {@link MessageTypeBuilderSingleEndsWithOpts}
            * @returns The rest of the builder, to chain configuration.
            * @see See {@link builder} for examples
            */

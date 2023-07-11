@@ -97,7 +97,7 @@ export enum TokeniserStates {
  * A function which builds a {@link Rule}. It will usually have a base internal
  * implementation and will compose the provided overrides.
  *
- * @param opts The context from the caller, usually a partial {@link Rule} that
+ * @param opts - The context from the caller, usually a partial {@link Rule} that
  *   represents specific variations needed by the caller. This normally
  *   overrides the base impl.
  * @returns The composed {@link Rule} that would be used in the original
@@ -110,12 +110,12 @@ export type TokeniserRuleOverrideFn = (
    * The original implementation of the function to fetch the rules for the
    * relevant token.
    *
-   * @param baseImpl The context from the caller, usually a partial {@link Rule}
-   *   that represents specific variations needed by the caller.
-   * @param stage The {@link TokeniserStates} from which this rule builder was
+   * @param baseImpl - The context from the caller, usually a partial
+   *   {@link Rule} that represents specific variations needed by the caller.
+   * @param stage - The {@link TokeniserStates} from which this rule builder was
    *   called.
-   * @param opts The context from the caller, usually a partial {@link Rule} that
-   *   represents specific variations needed by the caller. This normally
+   * @param opts - The context from the caller, usually a partial {@link Rule}
+   *   that represents specific variations needed by the caller. This normally
    *   overrides the base impl.
    * @returns The composed {@link Rule} that will be used for this token in place
    *   of the original implementation.
@@ -144,8 +144,8 @@ export type TokenRuleBuilderOpts<
  * A function which defines how to build the rules for different tokens specific
  * to this library.
  *
- * @param opts The {@link TokenRuleBuilderOpts} that represent the configuration
- *   for this rule.
+ * @param opts - The {@link TokenRuleBuilderOpts} that represent the
+ *   configuration for this rule.
  * @returns The composed {@link Rule}.
  */
 export type TokenRuleBuilder<AdditionalOpts extends Record<string, any> = {}> =
@@ -345,7 +345,7 @@ export interface TokeniserOpts {
    * Enable or disable escaping of string literals according to the
    * specification.
    *
-   * @defaultValue `true``
+   * @defaultValue `true`
    */
   escapeLiterals?: boolean
 

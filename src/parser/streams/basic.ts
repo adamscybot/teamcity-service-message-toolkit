@@ -1,3 +1,4 @@
+import { TransformStream } from 'tc-message-toolkit/stream'
 import { MessageTypeRepository } from '../../messages/types'
 import { TokenTypes, type Token } from '../../tokeniser'
 
@@ -89,7 +90,6 @@ class BasicMessageTransformer
   implements Transformer<Token, BasicMessageStreamChunk>
 {
   private tokenStack = new ParserTokenBuffer()
-  private _lastFlowIdContext: string | undefined = undefined
   private _currentFlowIdContext: string | undefined = undefined
   private _stagedMessage: Partial<BasicMessageLiteral> = {}
   private _stagedLiteral: string | undefined

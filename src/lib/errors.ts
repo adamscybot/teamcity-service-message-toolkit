@@ -1,6 +1,5 @@
 import { CustomError } from 'ts-custom-error'
 import { MessageFactory, MessageTypeRepository } from '../messages/types.js'
-import { factory } from 'typescript'
 
 /**
  * Error type thrown when the user attempted to retrieve a message type that was

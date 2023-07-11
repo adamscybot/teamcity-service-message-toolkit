@@ -1,5 +1,6 @@
+import { TransformStream } from 'tc-message-toolkit/stream'
+
 import {
-  MessageFactory,
   MessageTypeRepository,
   MultiAttributeMessage,
   SingleAttributeMessage,
@@ -71,7 +72,9 @@ class SemanticMessageTransformer<Repository extends MessageTypeRepository<any>>
         })
         try {
           message?.validate()
-        } catch (e) {}
+        } catch (e) {
+          /* empty */
+        }
 
         controller.enqueue(message)
         return
@@ -85,7 +88,9 @@ class SemanticMessageTransformer<Repository extends MessageTypeRepository<any>>
         })
         try {
           message?.validate()
-        } catch (e) {}
+        } catch (e) {
+          /* empty */
+        }
         controller.enqueue(message)
         return
       }
